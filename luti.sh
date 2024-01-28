@@ -7,7 +7,7 @@ if [ ! -f config ]; then
 	echo "First time run. Setting up config file.  Please edit config file and run again."
 	echo '# CHANGE THESE VALUES
 my_instance="https://lemmy.world"			# e.g. https://feddit.nl
-my_username="JonsJava"			                    # e.g. freamon
+my_username=""			                    # e.g. freamon
 my_password=""		                        # e.g. hunter2
 USE_MFA=false                                # true or false depending on if you use MFA' > config
 	exit 0
