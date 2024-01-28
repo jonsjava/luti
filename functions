@@ -1,0 +1,52 @@
+
+# Check everything needed is installed
+system_check() {
+	if ! command -v jq &> /dev/null
+	then
+		echo "jq could not be found. Please install it."
+		exit 1
+	fi
+    if ! command -v curl &> /dev/null
+    then
+        echo "curl could not be found. Please install it."
+        exit 1
+    fi
+}
+
+# isset looks so much nicer than -z
+isset() {
+	local var="$1"
+	if [ -z "$var" ]; then
+		return 1
+	else
+		return 0
+	fi
+}
+
+# log in and get a JWT
+login() {
+	local end_point="user/login"
+	if [ "$USE_MFA" == true ]; then
+		local json_data="{\"username_or_email\":\"$my_username\",\"password\":\"$my_password\",\"totp_2fa_token\":\"$MFA_TOKEN\"}"
+	else
+		local json_data="{\"username_or_email\":\"$my_username\",\"password\":\"$my_password\"}"
+	fi
+	local url="$my_instance/$API/$end_point"
+	local response=$(curl -s -H "Content-Type: application/json" -d "$json_data" "$url")
+	local jwt=$(echo "$response" | jq -r '.jwt')
+	echo "$jwt"
+}
+
+get_mod_reports() {
+	local end_point="user/report_count"
+	local www_data="auth=${jwt}"
+	local url="$my_instance/$API/$end_point?$www_data"
+	local reports=$(curl --request GET "$url" --header 'accept: application/json' --silent)
+	local comment_reports=$(echo "$reports" | jq -r '.comment_reports')
+	local post_reports=$(echo "$reports" | jq -r '.post_reports')
+	echo "
+
+	Comment Reports: $comment_reports
+	Post Reports:    $post_reports
+	"
+}
