@@ -1,4 +1,18 @@
 # Check everything needed is installed
+
+function_list(){
+	echo "
+	Functions available:
+	|---------------------------------------------------------------------------------------------------------------|
+	| system_check    | Checks if curl and jq are installed. failes if either are not found.                        |
+	| isset           | Checks if a variable is set. Returns 0 if set, 1 if not.                                    |
+	| login           | Logs in and gets a JWT.  Requires my_username and my_password to be set.                    |
+	| api_call_get    | Runs a GET API call.  Requires a call name to be passed in.                                 |
+	| get_mod_reports | Gets the number of reports for comments and posts.  Requires a JWT to be set.               |
+	|---------------------------------------------------------------------------------------------------------------|
+	"
+
+}
 system_check() {
 	if ! command -v jq &> /dev/null
 	then
@@ -33,19 +47,40 @@ login() {
 	local url="$my_instance/$API/$end_point"
 	local response=$(curl -s -H "Content-Type: application/json" -d "$json_data" "$url")
 	local jwt=$(echo "$response" | jq -r '.jwt')
-	echo "$jwt"
+    echo "$jwt"
+}
+get_user_id(){
+	local user_name="$1"
+	local jwt=$new_jwt
+	local user_result=$(api_call_get "user?username=$user_name&auth=${jwt}")
+	local user_id=$(echo "$user_result" | jq -r '.person_view.person.id')
+	echo $user_id
+}
+get_community_id(){
+	local community_name="$1"
+	local jwt=$new_jwt
+	local community_result=$(api_call_get "community?name=$community_name&auth=${jwt}")
+	local community_id=$(echo "$community_result" | jq -r '.community_view.community.id')
+	echo $community_id
+}
+# Run GET API calls.  Easier to pass in the call name than the whole URL, AUTH, and other things.
+api_call_get(){
+    local call="$1"
+	#local jwt=$new_jwt
+    local end_point="$call"
+	local www_data="auth=${jwt}"
+	local url="$my_instance/$API/$end_point"
+	local results=$(curl --request GET "$url" --header 'accept: application/json' --silent)
+	echo "$results"
 }
 
-get_mod_reports() {
-	local end_point="user/report_count"
-	local www_data="auth=${jwt}"
-	local url="$my_instance/$API/$end_point?$www_data"
-	local reports=$(curl --request GET "$url" --header 'accept: application/json' --silent)
-	local comment_reports=$(echo "$reports" | jq -r '.comment_reports')
-	local post_reports=$(echo "$reports" | jq -r '.post_reports')
-	echo "
+get_mod_reports(){
+    local reports=$(api_call_get "user/report_count")
+    local comment_reports=$(echo "$reports" | jq -r '.comment_reports')
+    local post_reports=$(echo "$reports" | jq -r '.post_reports')
+    echo "
 
-	Comment Reports: $comment_reports
-	Post Reports:    $post_reports
-	"
+    Comment Reports: $comment_reports
+    Post Reports:    $post_reports
+    "
 }
