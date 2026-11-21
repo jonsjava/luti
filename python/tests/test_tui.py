@@ -1,14 +1,13 @@
 """Textual Pilot tests: every main screen loads against both dev servers."""
 import pytest
+from conftest import ADMIN, USER_PW, register_user, unique
 from textual.widgets import Input, TextArea
 
-from luti_tui.api import Lemmy
-from luti_tui.app import LutiApp, main
-from luti_tui.client import LemmyClient, NotFound
-from luti_tui.config import Profile
-from luti_tui.widgets import ItemList
-
-from conftest import ADMIN, USER_PW, register_user, unique
+from luti.api import Lemmy
+from luti.client import LemmyClient, NotFound
+from luti.config import Profile
+from luti.tui.app import LutiApp, main
+from luti.tui.widgets import ItemList
 
 SIZE = (150, 48)
 
@@ -104,8 +103,8 @@ async def test_expired_token_returns_to_login(server):
     p.write_token("not-a-real-token")
     app = LutiApp()
     async with app.run_test(size=SIZE) as pilot:
-        await until(pilot, lambda: screen_is(app, "LoginScreen"))
-        assert app.screen.query_one("#username", Input).value == "alice"
+        await until(pilot, lambda: screen_is(app, "LoginScreen") and
+                    app.screen.query_one("#username", Input).value == "alice", what="profile filled in")
 
 
 @pytest.mark.integration
@@ -119,7 +118,7 @@ async def test_main_screens_load(server):
         assert version in app.lemmy.version
         # filters
         feed = app.screen
-        await pilot.press("o")
+        await pilot.press("S")
         await until(pilot, lambda: feed.sort == "hot")
         await pilot.press("t")
         await until(pilot, lambda: feed.sort == "top")
@@ -215,7 +214,7 @@ async def test_compose_post_and_message(server):
                     what="new post opened")
         app.screen.open_person(username="alice")
         await until(pilot, lambda: screen_is(app, "PersonScreen") and app.screen.person is not None)
-        await pilot.press("m")
+        await pilot.press("w")
         await until(pilot, lambda: screen_is(app, "ComposeScreen"))
         app.screen.query_one(TextArea).text = f"hello alice {title}"
         await pilot.press("ctrl+s")

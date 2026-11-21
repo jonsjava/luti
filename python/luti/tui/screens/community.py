@@ -5,11 +5,11 @@ from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import VerticalScroll
-from textual.widgets import Footer, Header, Markdown, Static
+from textual.widgets import Footer, Markdown, Static
 
-from ..api import ModelPager
-from ..models import Community
-from ..widgets import ItemList
+from ...api import ModelPager
+from ...models import Community
+from ..widgets import ItemList, SafeHeader
 from .base import LutiScreen
 from .dialogs import PromptDialog
 
@@ -18,11 +18,12 @@ COMMUNITY_SORTS = ["hot", "new", "old"]
 
 class CommunitiesScreen(LutiScreen):
     HELP_TITLE = "Communities"
+    SUB_TITLE = "communities"
     BINDINGS = [
         Binding("enter", "open", "Open", show=False),
-        Binding("b", "follow", "Follow/unfollow"),
+        Binding("b,plus", "follow", "Follow/unfollow"),
         Binding("l", "listing", "Listing"),
-        Binding("o", "sort", "Sort"),
+        Binding("S", "sort", "Sort"),
         Binding("f", "goto", "Go to…"),
         Binding("L", "modlog", "Modlog", show=False),
         Binding("R", "refresh", "Refresh"),
@@ -36,7 +37,7 @@ class CommunitiesScreen(LutiScreen):
         self.pager: ModelPager[Community] | None = None
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield SafeHeader()
         yield Static("", id="filter-bar")
         yield ItemList(id="communities")
         with VerticalScroll(id="detail"):
@@ -44,7 +45,6 @@ class CommunitiesScreen(LutiScreen):
         yield Footer()
 
     def on_mount(self) -> None:
-        self.sub_title = "communities"
         if self.luti.lemmy and self.luti.lemmy.client.token and self.luti.lemmy.me and self.luti.lemmy.me.follows:
             self.listing = "subscribed"
         self.query_one(ItemList).focus()

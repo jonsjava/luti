@@ -1,7 +1,7 @@
 """Hatch build hook: bundle the shared endpoint map into the package.
 
 The single source of truth is ../spec/endpoints.json in the luti repo. It is
-copied into the wheel (and sdist) as luti_tui/endpoints.json at build time, so
+copied into the wheel (and sdist) as luti/endpoints.json at build time, so
 the repo never holds a second copy. A wheel built from an sdist finds the file
 already inside the package and needs nothing extra.
 """
@@ -19,7 +19,7 @@ class SpecBuildHook(BuildHookInterface):
         if not spec.is_file():
             # Building from an sdist, which carries the file inside the package.
             # It is gitignored in the repo, so include it explicitly.
-            spec = root / "luti_tui" / "endpoints.json"
+            spec = root / "luti" / "endpoints.json"
         if not spec.is_file():
-            raise FileNotFoundError(f"luti-tui build: cannot find the endpoint spec at {spec}")
-        build_data["force_include"][str(spec)] = "luti_tui/endpoints.json"
+            raise FileNotFoundError(f"luti build: cannot find the endpoint spec at {spec}")
+        build_data["force_include"][str(spec)] = "luti/endpoints.json"

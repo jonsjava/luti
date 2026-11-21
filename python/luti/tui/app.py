@@ -4,18 +4,35 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from typing import Iterable
 
 from textual import work
-from textual.app import App
+from textual.app import App, SystemCommand
 from textual.binding import Binding
 from textual.css.query import NoMatches
+from textual.screen import Screen
 
-from . import __version__
-from .api import Lemmy
-from .client import AuthError, LemmyClient, LutiError
-from .config import Profile, list_profiles, valid_profile_name
+from .. import __version__
+from ..api import Lemmy
+from ..client import AuthError, LemmyClient, LutiError
+from ..config import Profile, list_profiles, valid_profile_name
+from ..models import Person
+from ..stars import Stars
+from . import media, widgets
 from .screens.base import LutiScreen
 from .screens.dialogs import HelpScreen
+
+SECTIONS = [
+    ("feed", "Feed", "The post feed"),
+    ("stargaze", "Stargaze", "New posts from your starred users"),
+    ("inbox", "Inbox", "Replies, mentions and messages"),
+    ("communities", "Communities", "Browse communities"),
+    ("search", "Search", "Search posts, comments, communities and users"),
+    ("me", "My profile", "Your posts and comments"),
+    ("modqueue", "Mod queue", "Reports to handle"),
+    ("modlog", "Modlog", "Moderation log"),
+    ("admin", "Admin", "Registrations, bans and purges"),
+]
 
 CSS = """
 Screen { background: $surface; }
@@ -52,6 +69,12 @@ ItemList > ListItem Label { width: 1fr; }
 .form Input, .form Select { width: 60; }
 #bans-title { padding: 0 2; }
 #recent-bans { height: 1fr; }
+#stargaze { height: 1fr; }
+#stargaze-posts { width: 1fr; }
+#favorites-pane { width: 36; border-left: solid $primary; padding: 0 1; }
+#favorites { height: 1fr; }
+#post-media, #comment-media { height: auto; }
+.row-with-thumb { height: auto; }
 ModalScreen { align: center middle; }
 .dialog { width: 72; height: auto; max-height: 90%; padding: 1 2; border: thick $primary; background: $panel; }
 .dialog-title { margin-bottom: 1; width: 1fr; }
@@ -75,6 +98,7 @@ class LutiApp(App):
         Binding("M", "goto('modqueue')", "Mod queue", show=False),
         Binding("O", "goto('modlog')", "Modlog", show=False),
         Binding("A", "goto('admin')", "Admin", show=False),
+        Binding("T", "goto('stargaze')", "Stargaze", show=False),
         Binding("P", "profiles", "Profiles", show=False),
         Binding("ctrl+q", "quit", "Quit", show=False, priority=True),
     ]
@@ -86,12 +110,39 @@ class LutiApp(App):
         self.api_override = api
         self.profile: Profile | None = None
         self.lemmy: Lemmy | None = None
+        self.stars: Stars | None = None
         self.unread_text = ""
+        self.stargaze_unread = 0
+        self.image_cache = media.ImageCache()
+        self._stargaze_timer = None
+
+    # -- settings ------------------------------------------------------------------
+    def setting(self, key: str) -> str:
+        return (self.profile or Profile(name="default")).setting(key)
+
+    def setting_flag(self, key: str) -> bool:
+        return (self.profile or Profile(name="default")).flag(key)
+
+    def show_thumbnails(self) -> bool:
+        return media.thumbnails_enabled() and self.setting_flag("thumbnails")
+
+    def nsfw_revealed(self, nsfw: bool) -> bool:
+        """Whether NSFW media may be shown without an explicit reveal (follows show_nsfw/blur_nsfw)."""
+        if not nsfw:
+            return True
+        me = self.lemmy.me if self.lemmy else None
+        return bool(me and me.show_nsfw and not me.blur_nsfw)
 
     # -- start-up ----------------------------------------------------------------
     def on_mount(self) -> None:
         self.set_interval(90, self.refresh_unread)
         self.boot()
+
+    def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
+        yield from super().get_system_commands(screen)
+        for key, title, help_text in SECTIONS:
+            yield SystemCommand(f"Go to {title}", help_text, lambda k=key: self.action_goto(k))
+        yield SystemCommand("Switch profile", "Log in or pick another profile", self.action_profiles)
 
     @work(exclusive=True, group="boot")
     async def boot(self) -> None:
@@ -133,6 +184,20 @@ class LutiApp(App):
         old = self.lemmy
         self.profile = profile
         self.lemmy = lemmy
+        self.stars = Stars(profile) if profile is not None and lemmy.client.token else None
+        widgets.STARRED.clear()
+        if self.stars:
+            widgets.STARRED.update(self.stars.list())
+        self.stargaze_unread = 0
+        if self._stargaze_timer is not None:
+            self._stargaze_timer.stop()
+            self._stargaze_timer = None
+        try:
+            interval = int(self.setting("stargaze_refresh") or 0)
+        except ValueError:
+            interval = 300
+        if self.stars and interval > 0:
+            self._stargaze_timer = self.set_interval(interval, self.refresh_stargaze)
         # Run the screen switch on the app, not in the caller's worker: popping
         # the login screen would cancel a worker that belongs to it.
         self.call_later(self._enter_feed, old if old is not lemmy else None)
@@ -145,6 +210,7 @@ class LutiApp(App):
         await self.push_screen(FeedScreen())
         self.refresh_title()
         self.refresh_unread()
+        self.refresh_stargaze()
         if old is not None:
             await old.aclose()
 
@@ -157,8 +223,12 @@ class LutiApp(App):
         who = lemmy.me.person.name if lemmy.me else "anonymous"
         ver = lemmy.client.server_version or lemmy.version
         title = f"luti · {who}@{host} · {ver}"
+        if self.unread_text:
+            title += f" · {self.unread_text}"
+        if self.stargaze_unread:
+            title += f" · ★ {self.stargaze_unread}"
         try:
-            self.title = f"{title} · {self.unread_text}" if self.unread_text else title
+            self.title = title
         except NoMatches:
             # A Header on a screen that is being removed reacted to the change;
             # try again once the screen stack has settled.
@@ -181,6 +251,50 @@ class LutiApp(App):
         self.unread_text = " · ".join(parts)
         self.refresh_title()
 
+    @work(exclusive=True, group="stargaze-count")
+    async def refresh_stargaze(self) -> None:
+        if self.stars is None or self.lemmy is None or not self.stars.list():
+            if self.stargaze_unread:
+                self.stargaze_unread = 0
+                self.refresh_title()
+            return
+        try:
+            counts = await self.stars.unread_counts(self.lemmy)
+        except LutiError:
+            return
+        self.stargaze_unread = sum(counts.values())
+        self.refresh_title()
+
+    def toggle_star(self, person: Person, screen: LutiScreen | None = None) -> None:
+        if self.stars is None:
+            self.notify("Stars need a logged-in profile", severity="warning")
+            return
+        name = widgets.qualified_name(person)
+        if not name:
+            self.notify(f"Can't tell which instance {person.name} is on", severity="warning")
+            return
+        if name in self.stars.list():
+            self.stars.remove(name)
+            self.notify(f"Unstarred {name}")
+        else:
+            self.stars.add(name)
+            self.notify(f"★ Starred {name}: new posts will show in Stargaze (T)")
+            self._baseline(name)
+        widgets.STARRED.clear()
+        widgets.STARRED.update(self.stars.list())
+        if screen is not None:
+            screen.after_star_change()
+
+    @work(group="stargaze-baseline")
+    async def _baseline(self, name: str) -> None:
+        if self.stars and self.lemmy:
+            try:
+                await self.stars.baseline(self.lemmy, name)
+            except LutiError as e:
+                self.notify(f"stargaze: {e}", severity="warning")
+            for w in self.stars.warnings:
+                self.notify(w, severity="warning")
+
     # -- navigation ----------------------------------------------------------------
     def action_help(self) -> None:
         if isinstance(self.screen, HelpScreen):
@@ -201,11 +315,12 @@ class LutiApp(App):
         from .screens.mod import ModlogScreen, ModQueueScreen
         from .screens.person import PersonScreen
         from .screens.search import SearchScreen
+        from .screens.stargaze import StargazeScreen
 
         if self.lemmy is None or not isinstance(self.screen, LutiScreen) or type(self.screen).__name__ == "LoginScreen":
             return
         authed = bool(self.lemmy.client.token)
-        if section in ("inbox", "me", "modqueue", "admin") and not authed:
+        if section in ("inbox", "me", "modqueue", "admin", "stargaze") and not authed:
             self.notify("Log in first (P)", severity="warning")
             return
         if section == "modqueue" and not self.lemmy.is_mod:
@@ -225,6 +340,7 @@ class LutiApp(App):
             "modqueue": ModQueueScreen,
             "modlog": ModlogScreen,
             "admin": AdminScreen,
+            "stargaze": StargazeScreen,
         }.get(section)
         if section == "me" and self.lemmy.me:
             self.push_screen(PersonScreen(username=self.lemmy.me.person.name))
@@ -234,6 +350,7 @@ class LutiApp(App):
     async def on_unmount(self) -> None:
         if self.lemmy is not None:
             await self.lemmy.aclose()
+        await self.image_cache.aclose()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -241,9 +358,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("-p", "--profile", help="profile name (default: $LUTI_PROFILE, 'default' or the first profile)")
     parser.add_argument("-i", "--instance", help="instance URL, overriding the profile")
     parser.add_argument("--api", choices=["v3", "v4"], help="skip version detection")
+    parser.add_argument("--images", choices=["auto", "on", "off"], help="override the profile's images setting")
     parser.add_argument("--list-profiles", action="store_true", help="list profiles and exit")
     parser.add_argument("--spec-path", action="store_true", help="print the endpoint spec in use and exit")
-    parser.add_argument("-V", "--version", action="version", version=f"luti-tui {__version__}")
+    parser.add_argument("-V", "--version", action="version", version=f"luti-tui (luti {__version__})")
     args = parser.parse_args(argv)
     if args.list_profiles:
         for name in list_profiles():
@@ -251,13 +369,17 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{name}\t{p.username}@{p.instance}\t{p.api or 'auto'}")
         return 0
     if args.spec_path:
-        from .spec import load_spec, spec_path
+        from ..spec import load_spec, spec_path
 
         path = spec_path()
         print(f"{path} ({len(load_spec()['ops'])} ops)")
         return 0
     if args.profile and not valid_profile_name(args.profile):
         parser.error(f"invalid profile name {args.profile!r}")
+    # Image protocol detection talks to the terminal, so it must run before Textual starts.
+    name = args.profile or os.environ.get("LUTI_PROFILE") or "default"
+    images = args.images or (Profile.load(name).setting("images") if valid_profile_name(name) else "auto")
+    media.init_backend(images)
     LutiApp(profile=args.profile, instance=args.instance, api=args.api).run()
     return 0
 

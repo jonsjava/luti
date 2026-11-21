@@ -5,12 +5,12 @@ from rich.markup import escape
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.widgets import Footer, Header, Static
+from textual.widgets import Footer, Static
 
-from ..api import LISTING_TYPES, POST_SORTS, TIME_RANGES, ModelPager
-from ..models import Community, Post
-from ..widgets import ItemList
-from .base import LutiScreen
+from ...api import LISTING_TYPES, POST_SORTS, TIME_RANGES, ModelPager
+from ...models import Community, Post
+from ..widgets import ItemList, SafeHeader
+from .base import CONTENT_BINDINGS, CONTENT_HELP, LutiScreen
 from .dialogs import PromptDialog
 
 
@@ -29,21 +29,22 @@ class FeedScreen(LutiScreen):
         Binding("d", "vote('down')", "Downvote"),
         Binding("s", "save", "Save"),
         Binding("r", "reply", "Reply"),
-        Binding("o", "sort", "Sort"),
+        Binding("S", "sort", "Sort"),
         Binding("t", "time", "Top time"),
         Binding("l", "listing", "Listing"),
         Binding("f", "community", "Community"),
         Binding("x", "clear_filter", "Clear filter", show=False),
-        Binding("S", "toggle_saved", "Saved only", show=False),
+        Binding("V", "toggle_saved", "Saved only", show=False),
         Binding("n", "new_post", "New post"),
         Binding("a", "author", "Author", show=False),
-        Binding("c", "goto_community", "Go to community", show=False),
-        Binding("b", "follow", "Follow/unfollow", show=False),
+        Binding("number_sign", "goto_community", "Go to community", show=False, key_display="#"),
+        Binding("plus", "follow", "Follow/unfollow", show=False, key_display="+"),
         Binding("R", "refresh", "Refresh"),
+        *CONTENT_BINDINGS,
     ]
-    EXTRA_HELP = [("enter", "open post"), ("x", "clear community filter"), ("S", "saved posts only"),
-                  ("a", "author profile"), ("c", "open the post's community"),
-                  ("b", "follow / unfollow the filtered community")]
+    EXTRA_HELP = [("enter", "open post"), ("x", "clear community filter"), ("V", "saved posts only"),
+                  ("a", "author profile"), ("#", "open the post's community"),
+                  ("+", "follow / unfollow the filtered community"), *CONTENT_HELP]
 
     def __init__(self, community_name: str | None = None, sort: str | None = None, listing_type: str | None = None):
         super().__init__()
@@ -57,7 +58,7 @@ class FeedScreen(LutiScreen):
         self._loading = False
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield SafeHeader()
         yield Static("", id="filter-bar")
         yield ItemList(id="posts")
         yield Footer()
@@ -123,6 +124,9 @@ class FeedScreen(LutiScreen):
         finally:
             self._loading = False
 
+    def action_refresh(self) -> None:
+        self.reload()
+
     @on(ItemList.NearEnd)
     def _near_end(self) -> None:
         self.load_more()
@@ -133,6 +137,9 @@ class FeedScreen(LutiScreen):
 
     def current(self) -> Post | None:
         return self.query_one(ItemList).current
+
+    def selected_post(self) -> Post | None:
+        return self.current()
 
     # -- actions ---------------------------------------------------------------
     def action_open(self) -> None:

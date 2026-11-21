@@ -25,7 +25,7 @@ def spec_path() -> Path:
     if repo.is_file():
         return repo
     raise FileNotFoundError(
-        "luti: endpoint spec not found (set LUTI_SPEC or reinstall luti-tui)"
+        "luti: endpoint spec not found (set LUTI_SPEC or reinstall luti)"
     )
 
 
@@ -36,4 +36,8 @@ def _load(path: str) -> dict[str, Any]:
 
 
 def load_spec() -> dict[str, Any]:
+    """The endpoint map as a dict (cached; treat it as read-only)."""
     return _load(str(spec_path()))
+
+
+load = load_spec

@@ -4,11 +4,10 @@ Every test creates its own users and content, so it does not depend on counts
 and can share the servers with other test runs.
 """
 import pytest
-
-from luti_tui.api import Lemmy
-from luti_tui.client import ApiError, AuthError, LemmyClient, NotFound
-
 from conftest import ADMIN, USER_PW, register_user, unique
+
+from luti.api import Lemmy
+from luti.client import ApiError, AuthError, LemmyClient, NotFound
 
 pytestmark = pytest.mark.integration
 

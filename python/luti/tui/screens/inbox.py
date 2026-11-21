@@ -5,34 +5,36 @@ from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import VerticalScroll
-from textual.widgets import Footer, Header, Markdown, Static
+from textual.widgets import Footer, Markdown, Static
 
-from ..models import Notification
-from ..widgets import ItemList, ago
-from .base import LutiScreen
+from ...models import Comment, Notification, Person, Post
+from ..widgets import ItemList, SafeHeader, ago
+from .base import CONTENT_BINDINGS, CONTENT_HELP, LutiScreen
 
 
 class InboxScreen(LutiScreen):
     HELP_TITLE = "Inbox"
+    SUB_TITLE = "inbox"
     BINDINGS = [
         Binding("enter", "open", "Open", show=False),
         Binding("r", "reply", "Reply"),
         Binding("a", "toggle_unread", "Unread/all"),
-        Binding("m", "mark_read", "Mark read"),
+        Binding("e", "mark_read", "Mark read"),
         Binding("ctrl+a", "mark_all", "Mark all read"),
         Binding("u", "vote('up')", "Upvote", show=False),
         Binding("d", "vote('down')", "Downvote", show=False),
         Binding("R", "refresh", "Refresh"),
+        *CONTENT_BINDINGS,
     ]
     EXTRA_HELP = [("enter", "open the post (comments) or show the message"),
-                  ("m", "mark one item read (Lemmy 1.0 only)")]
+                  ("e", "mark one item read (Lemmy 1.0 only)"), ("ctrl+a", "mark everything read"), *CONTENT_HELP]
 
     def __init__(self):
         super().__init__()
         self.unread_only = False
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield SafeHeader()
         yield Static("", id="filter-bar")
         yield ItemList(id="inbox")
         with VerticalScroll(id="detail"):
@@ -40,7 +42,6 @@ class InboxScreen(LutiScreen):
         yield Footer()
 
     def on_mount(self) -> None:
-        self.sub_title = "inbox"
         self.query_one(ItemList).focus()
         self.action_refresh()
 
@@ -59,6 +60,18 @@ class InboxScreen(LutiScreen):
 
     def current(self) -> Notification | None:
         return self.query_one(ItemList).current
+
+    def selected_comment(self) -> Comment | None:
+        n = self.current()
+        return n.comment if n else None
+
+    def selected_post(self) -> Post | None:
+        c = self.selected_comment()
+        return Post(id=c.post_id, title=c.post_title) if c else None
+
+    def selected_person(self) -> Person | None:
+        n = self.current()
+        return n.creator if n else None
 
     @on(ItemList.Highlighted)
     async def _highlighted(self, event: ItemList.Highlighted) -> None:

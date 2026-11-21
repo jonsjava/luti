@@ -17,6 +17,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import ClassVar
 
 KNOWN_KEYS = ("instance", "username", "mfa", "api")
 KEYRING_SERVICE = "luti"
@@ -27,6 +28,31 @@ _PROFILE_NAME = re.compile(r"^[A-Za-z0-9._@-]+$")
 def config_root() -> Path:
     base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
     return Path(base) / "luti"
+
+
+def state_root() -> Path:
+    """$XDG_STATE_HOME/luti (default ~/.local/state/luti), the same on every OS."""
+    base = os.environ.get("XDG_STATE_HOME") or os.path.join(os.path.expanduser("~"), ".local", "state")
+    return Path(base) / "luti"
+
+
+def cache_root() -> Path:
+    """$XDG_CACHE_HOME/luti (default ~/.cache/luti)."""
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
+    return Path(base) / "luti"
+
+
+def atomic_write(path: Path, text: str, mode: int = 0o600) -> None:
+    """Write via a temp file in the same directory, then os.replace."""
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
+    try:
+        os.write(fd, text.encode("utf-8"))
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    os.replace(tmp, path)
 
 
 def valid_profile_name(name: str) -> bool:
@@ -118,9 +144,34 @@ class Profile:
         if self.api:
             values["api"] = self.api
         values.update({k: v for k, v in self.extra.items() if k not in KNOWN_KEYS})
-        tmp = self.config_file.with_suffix(".tmp")
-        tmp.write_text(format_config(values), encoding="utf-8")
-        os.replace(tmp, self.config_file)
+        atomic_write(self.config_file, format_config(values), 0o644)
+
+    # -- settings (extra keys; the Bash CLI ignores ones it doesn't know) --
+    SETTINGS: ClassVar[dict[str, str]] = {
+        "images": "auto",           # auto / on / off
+        "thumbnails": "true",       # thumbnails in the feed
+        "open_origin": "false",     # open the federated original (ap_id) instead of the home-instance page
+        "stargaze_refresh": "300",  # seconds between background stargaze checks (0 = off)
+    }
+
+    def setting(self, key: str) -> str:
+        return self.extra.get(key, self.SETTINGS.get(key, ""))
+
+    def flag(self, key: str) -> bool:
+        return self.setting(key).strip().lower() in ("true", "1", "yes", "on")
+
+    def set_setting(self, key: str, value: str | bool | int) -> None:
+        if isinstance(value, bool):
+            value = "true" if value else "false"
+        self.extra[key] = str(value)
+
+    @property
+    def stars_file(self) -> Path:
+        return self.dir / "stars"
+
+    @property
+    def state_dir(self) -> Path:
+        return state_root() / self.name
 
     # -- token ----------------------------------------------------------
     def read_token(self) -> str | None:

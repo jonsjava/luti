@@ -3,13 +3,40 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlparse
 
 from rich.markup import escape
+from textual.app import ComposeResult
 from textual.binding import Binding
+from textual.containers import Horizontal
+from textual.css.query import NoMatches
+from textual.dom import NoScreen
+from textual.events import Mount
 from textual.message import Message
-from textual.widgets import Label, ListItem, ListView
+from textual.widget import Widget
+from textual.widgets import Header, Label, ListItem, ListView
+from textual.widgets._header import HeaderTitle
 
-from .models import Comment, Community, ModlogEntry, Notification, Person, Post, RegistrationApplication, Report
+from ..models import (
+    Comment,
+    Community,
+    ModlogEntry,
+    Notification,
+    Person,
+    Post,
+    RegistrationApplication,
+    Report,
+)
+
+# Qualified names (name@host) of starred users; the app keeps this current.
+STARRED: set[str] = set()
+
+
+def qualified_name(p: Person | None) -> str | None:
+    if p is None:
+        return None
+    host = urlparse(p.ap_id).hostname if p.ap_id else None
+    return f"{p.name}@{host}".lower() if host else None
 
 
 def ago(iso: str) -> str:
@@ -49,6 +76,8 @@ def person_tag(p: Person | None, *, mod: bool = False, admin: bool = False) -> s
     if p is None:
         return "[dim]?[/]"
     tag = f"[b cyan]{escape(p.handle)}[/]"
+    if qualified_name(p) in STARRED:
+        tag += " [b yellow]★[/]"
     if admin:
         tag += " [b red]A[/]"
     elif mod:
@@ -72,6 +101,11 @@ def render_post(p: Post, *, show_community: bool = True) -> str:
         flags.append("[red]deleted[/]")
     if p.nsfw:
         flags.append("[red]nsfw[/]")
+    kind = p.media_kind
+    if kind == "image":
+        flags.append("[blue]image[/]")
+    elif kind == "video":
+        flags.append("[blue]▶ video[/]")
     if p.saved:
         flags.append("[magenta]★[/]")
     title = f"[b]{escape(p.title)}[/]" if not p.read else escape(p.title)
@@ -181,15 +215,39 @@ def render_any(obj: Any) -> str:
 
 
 class Row(ListItem):
-    """A list row that carries a model object."""
+    """A list row that carries a model object (and, for posts, an optional thumbnail)."""
 
     def __init__(self, obj: Any, markup: str | None = None):
-        super().__init__(Label(markup if markup is not None else render_any(obj), markup=True))
+        super().__init__()
         self.obj = obj
+        self.markup = markup
+
+    def compose(self) -> ComposeResult:
+        label = Label(self.markup if self.markup is not None else render_any(self.obj), markup=True)
+        thumb = self._thumbnail()
+        if thumb is None:
+            yield label
+        else:
+            with Horizontal(classes="row-with-thumb"):
+                yield thumb
+                yield label
+
+    def _thumbnail(self):
+        from . import media
+
+        app = self.app
+        if not isinstance(self.obj, Post) or not getattr(app, "show_thumbnails", lambda: False)():
+            return None
+        url = media.thumbnail_for(self.obj)
+        if not url:
+            return None
+        if self.obj.nsfw and not app.nsfw_revealed(True):  # type: ignore[attr-defined]
+            return None
+        return media.Thumbnail(url, app.image_cache)  # type: ignore[attr-defined]
 
     def refresh_obj(self, obj: Any) -> None:
         self.obj = obj
-        self.query_one(Label).update(render_any(obj))
+        self.query(Label).last().update(render_any(obj))
 
 
 class ItemList(ListView):
@@ -247,6 +305,39 @@ class ItemList(ListView):
         if isinstance(child, Row):
             child.refresh_obj(obj)
 
+    def rerender(self) -> None:
+        for child in self.children:
+            if isinstance(child, Row) and child.markup is None:
+                labels = child.query(Label)
+                if labels:
+                    labels.last().update(render_any(child.obj))
+
     @property
     def objects(self) -> list[Any]:
         return [c.obj for c in self.children if isinstance(c, Row)]
+
+
+class SafeHeader(Header):
+    """Header that tolerates title changes while it is still composing or being removed.
+
+    Textual's Header updates its HeaderTitle from a watcher; when the app title changes
+    while a screen is mid-mount or mid-removal, the child isn't there and the stock
+    widget raises NoMatches, which takes the whole app down.
+    """
+
+    def _on_mount(self, event: Mount) -> None:
+        # Textual dispatches _on_mount up the MRO; stop it before the stock Header
+        # registers its own (unguarded) watchers, and run Widget's handler ourselves.
+        event.prevent_default()
+        Widget._on_mount(self, event)
+
+        async def set_title() -> None:
+            try:
+                self.query_one(HeaderTitle).update(self.format_title())
+            except (NoScreen, NoMatches):
+                pass
+
+        self.watch(self.app, "title", set_title)
+        self.watch(self.app, "sub_title", set_title)
+        self.watch(self.screen, "title", set_title)
+        self.watch(self.screen, "sub_title", set_title)

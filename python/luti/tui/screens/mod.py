@@ -5,12 +5,12 @@ from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import VerticalScroll
-from textual.widgets import Footer, Header, Markdown, Static
+from textual.widgets import Footer, Markdown, Static
 
-from ..api import ModelPager
-from ..models import Community, ModlogEntry, Report
-from ..widgets import ItemList, ago
-from .base import LutiScreen
+from ...api import ModelPager
+from ...models import Comment, Community, ModlogEntry, Person, Post, Report
+from ..widgets import ItemList, SafeHeader, ago
+from .base import CONTENT_BINDINGS, CONTENT_HELP, LutiScreen
 from .dialogs import BanDialog, PromptDialog
 
 
@@ -24,8 +24,9 @@ class ModQueueScreen(LutiScreen):
         Binding("enter", "open", "Open", show=False),
         Binding("a", "toggle_all", "Open/all"),
         Binding("R", "refresh", "Refresh"),
+        *CONTENT_BINDINGS,
     ]
-    EXTRA_HELP = [("enter", "open the reported post or comment"),
+    EXTRA_HELP = [*CONTENT_HELP, ("enter", "open the reported post or comment"),
                   ("x", "remove (or restore) the content and resolve the report"),
                   ("b", "ban the author from the community (site ban for messages)"),
                   ("B", "ban the author site-wide (admins)")]
@@ -35,7 +36,7 @@ class ModQueueScreen(LutiScreen):
         self.unresolved_only = True
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield SafeHeader()
         yield Static("", id="filter-bar")
         yield ItemList(id="reports")
         with VerticalScroll(id="detail"):
@@ -68,6 +69,26 @@ class ModQueueScreen(LutiScreen):
 
     def current(self) -> Report | None:
         return self.query_one(ItemList).current
+
+    def selected_post(self) -> Post | None:
+        r = self.current()
+        if r is None or not r.post_id:
+            return None
+        post = Post.parse(self.lemmy.version, r.raw or {}) if r.raw and r.raw.get("post") else Post(id=r.post_id, title=r.title)
+        post.creator = r.target_creator if r.kind == "post" else None
+        return post
+
+    def selected_comment(self) -> Comment | None:
+        r = self.current()
+        if r is None or r.kind != "comment" or not r.raw:
+            return None
+        comment = Comment.parse(self.lemmy.version, r.raw)
+        comment.creator = r.target_creator
+        return comment
+
+    def selected_person(self) -> Person | None:
+        r = self.current()
+        return r.target_creator if r else None
 
     @on(ItemList.Highlighted)
     async def _highlighted(self, event: ItemList.Highlighted) -> None:
@@ -189,7 +210,7 @@ class ModlogScreen(LutiScreen):
         self.pager: ModelPager[ModlogEntry] | None = None
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield SafeHeader()
         yield Static("", id="filter-bar")
         yield ItemList(id="modlog")
         yield Footer()

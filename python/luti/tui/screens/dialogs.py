@@ -147,6 +147,7 @@ class BanDialog(ModalScreen["BanOptions | None"]):
 GLOBAL_HELP = [
     ("? / F1", "this help (F1 also works while typing)"),
     ("F", "feed (home)"),
+    ("T", "stargaze: new posts from starred users"),
     ("I", "inbox"),
     ("C", "communities"),
     ("/", "search"),
@@ -158,6 +159,7 @@ GLOBAL_HELP = [
     ("esc / q", "back (q on the feed quits)"),
     ("j / k", "move down / up"),
     ("g / G", "first / last item"),
+    ("ctrl+p", "command palette (all sections)"),
     ("ctrl+q", "quit"),
 ]
 

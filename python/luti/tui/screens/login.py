@@ -6,11 +6,22 @@ from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, ListItem, ListView, Select, Static
+from textual.widgets import (
+    Button,
+    Checkbox,
+    Footer,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    Select,
+    Static,
+)
 
-from ..api import Lemmy
-from ..client import AuthError, LemmyClient, LutiError, MfaRequired
-from ..config import Profile, list_profiles, valid_profile_name
+from ...api import Lemmy
+from ...client import AuthError, LemmyClient, LutiError, MfaRequired
+from ...config import Profile, list_profiles, valid_profile_name
+from ..widgets import SafeHeader
 from .base import LutiScreen
 
 
@@ -29,7 +40,7 @@ class LoginScreen(LutiScreen):
         self.message = message
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield SafeHeader()
         with Horizontal(id="login"):
             with Vertical(id="profiles-pane"):
                 yield Label("[b]Profiles[/]")

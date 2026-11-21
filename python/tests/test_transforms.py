@@ -1,11 +1,17 @@
 import json
 
 import pytest
-
-from luti_tui.client import SPEC_FIXES, apply_spec_fixes, extract_items, pascal_case, snake_case, transform_params
-from luti_tui.spec import load_spec, spec_path
-
 from conftest import fx
+
+from luti.client import (
+    SPEC_FIXES,
+    apply_spec_fixes,
+    extract_items,
+    pascal_case,
+    snake_case,
+    transform_params,
+)
+from luti.spec import load_spec, spec_path
 
 
 @pytest.fixture

@@ -11,9 +11,12 @@ dispatcher. The main differences handled here:
 """
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 from urllib.parse import urlparse
+
+from .media import media_kind as _media_kind
 
 Raw = dict[str, Any]
 
@@ -121,7 +124,10 @@ class Person(_Model):
 
     @classmethod
     def parse_view(cls, version: str, view: Raw) -> "Person":
-        return cls.from_view_v4(view) if version == "v4" else cls.from_view_v3(view)
+        """A PersonView; `.raw` is the whole view."""
+        person = cls.from_view_v4(view) if version == "v4" else cls.from_view_v3(view)
+        person.raw = view
+        return person
 
 
 # --------------------------------------------------------------------------
@@ -217,6 +223,16 @@ class Post(_Model):
     creator_is_moderator: bool = False
     creator_is_admin: bool = False
     creator_banned_from_community: bool = False
+    url_content_type: str | None = None
+    thumbnail_url: str | None = None
+    embed_video_url: str | None = None
+    embed_title: str | None = None
+    alt_text: str | None = None
+
+    @property
+    def media_kind(self) -> str:
+        """image / video / link / none (from the server's data; no network)."""
+        return _media_kind(self.url, self.url_content_type, self.embed_video_url)
 
     @classmethod
     def from_v3(cls, view: Raw) -> "Post":
@@ -235,6 +251,7 @@ class Post(_Model):
             ap_id=p.get("ap_id", ""), creator_is_moderator=view.get("creator_is_moderator", False),
             creator_is_admin=view.get("creator_is_admin", False),
             creator_banned_from_community=view.get("creator_banned_from_community", False),
+            **_post_media(p),
         )
 
     @classmethod
@@ -258,7 +275,12 @@ class Post(_Model):
             ap_id=p.get("ap_id", ""), creator_is_moderator=view.get("creator_is_moderator", False),
             creator_is_admin=view.get("creator_is_admin", False),
             creator_banned_from_community=view.get("creator_banned_from_community", False),
+            **_post_media(p),
         )
+
+
+def _post_media(p: Raw) -> dict[str, Any]:
+    return {k: p.get(k) for k in ("url_content_type", "thumbnail_url", "embed_video_url", "embed_title", "alt_text")}
 
 
 # --------------------------------------------------------------------------
@@ -644,13 +666,17 @@ class Me:
     admin: bool = False
     moderates: list[Community] = field(default_factory=list)
     follows: list[Community] = field(default_factory=list)
+    show_nsfw: bool = False
+    blur_nsfw: bool = True
 
     @classmethod
     def from_v3(cls, my_user: Raw) -> "Me":
         my_user = _d(my_user)
         luv = _d(my_user.get("local_user_view"))
-        admin = bool(_d(luv.get("local_user")).get("admin"))
+        lu = _d(luv.get("local_user"))
+        admin = bool(lu.get("admin"))
         return cls(
+            show_nsfw=bool(lu.get("show_nsfw", False)), blur_nsfw=bool(lu.get("blur_nsfw", True)),
             person=Person.from_v3(luv.get("person"), counts=luv.get("counts"), admin=admin), admin=admin,
             moderates=[Community.from_v3({"community": m.get("community")}) for m in my_user.get("moderates") or []],
             follows=[Community.from_v3({"community": f.get("community"), "subscribed": "Subscribed"}) for f in my_user.get("follows") or []],
@@ -660,8 +686,10 @@ class Me:
     def from_v4(cls, account: Raw) -> "Me":
         account = _d(account)
         luv = _d(account.get("local_user_view"))
-        admin = bool(_d(luv.get("local_user")).get("admin"))
+        lu = _d(luv.get("local_user"))
+        admin = bool(lu.get("admin"))
         return cls(
+            show_nsfw=bool(lu.get("show_nsfw", False)), blur_nsfw=bool(lu.get("blur_nsfw", True)),
             person=Person.from_v4(luv.get("person"), banned=luv.get("banned", False), admin=admin), admin=admin,
             moderates=[Community.from_v4({"community": m.get("community")}) for m in account.get("moderates") or []],
             follows=[Community.from_v4({"community": f.get("community"), "community_actions": {"follow_state": "accepted"}})
@@ -696,3 +724,25 @@ class UnreadCounts:
         unread = _d(unread)
         return cls(inbox=unread.get("notification_count", 0) or 0, reports=unread.get("report_count", 0) or 0,
                    applications=unread.get("registration_application_count", 0) or 0)
+
+
+# --------------------------------------------------------------------------
+# Every model keeps the response object it was built from in `.raw`, for
+# callers who need fields luti doesn't map.
+def _keep_raw(fn):
+    @functools.wraps(fn)
+    def wrapper(cls, raw, *args, **kwargs):
+        obj = fn.__func__(cls, raw, *args, **kwargs)
+        if getattr(obj, "raw", None) is None:
+            obj.raw = raw
+        return obj
+    return classmethod(wrapper)
+
+
+for _cls in (Person, Community, Post, Comment, PrivateMessage, Notification, Report,
+             RegistrationApplication, ModlogEntry, Me):
+    _cls.raw = None  # type: ignore[attr-defined]
+    _cls.__annotations__["raw"] = "Raw | None"
+    for _name in ("from_v3", "from_v4"):
+        setattr(_cls, _name, _keep_raw(_cls.__dict__[_name]))
+del _cls, _name

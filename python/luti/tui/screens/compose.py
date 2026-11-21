@@ -9,10 +9,10 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
-from textual.widgets import Footer, Header, Input, Label, Markdown, Static, TextArea
+from textual.widgets import Footer, Input, Label, Markdown, Static, TextArea
 
-from ..client import LutiError
-from ..widgets import one_line
+from ...client import LutiError
+from ..widgets import SafeHeader, one_line
 
 
 class ComposeScreen(Screen):
@@ -52,7 +52,7 @@ class ComposeScreen(Screen):
         return cls("message", recipient=recipient, recipient_id=recipient_id, context=context)
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield SafeHeader()
         with Vertical(id="compose"):
             title = {"post": "New post", "comment": "Reply" if self.parent_id else "Comment",
                      "message": "Private message"}[self.kind]

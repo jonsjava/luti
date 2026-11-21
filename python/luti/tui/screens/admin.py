@@ -6,10 +6,20 @@ from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Select, Static, TabbedContent, TabPane
+from textual.widgets import (
+    Button,
+    Checkbox,
+    Footer,
+    Input,
+    Label,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+)
 
-from ..models import RegistrationApplication
-from ..widgets import ItemList
+from ...models import RegistrationApplication
+from ..widgets import ItemList, SafeHeader
 from .base import LutiScreen
 from .dialogs import ConfirmDialog, PromptDialog
 
@@ -35,7 +45,7 @@ class AdminScreen(LutiScreen):
         self.pending_only = True
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield SafeHeader()
         with TabbedContent(initial="registrations"):
             with TabPane("Registrations", id="registrations"):
                 yield Static("", id="reg-bar")

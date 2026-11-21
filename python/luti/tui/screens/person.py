@@ -5,11 +5,11 @@ from rich.markup import escape
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.widgets import Footer, Header, Static
+from textual.widgets import Footer, Static
 
-from ..models import Person
-from ..widgets import ItemList, ago
-from .base import LutiScreen
+from ...models import Comment, Person, Post
+from ..widgets import STARRED, ItemList, SafeHeader, ago, qualified_name
+from .base import CONTENT_BINDINGS, CONTENT_HELP, LutiScreen
 from .dialogs import BanDialog
 
 
@@ -17,11 +17,14 @@ class PersonScreen(LutiScreen):
     HELP_TITLE = "Profile"
     BINDINGS = [
         Binding("enter", "open", "Open", show=False),
-        Binding("m", "message", "Message"),
+        Binding("w", "message", "Message"),
         Binding("B", "ban", "Site ban", show=False),
         Binding("R", "refresh", "Refresh"),
+        *CONTENT_BINDINGS,
     ]
-    EXTRA_HELP = [("enter", "open the post or comment"), ("B", "ban / unban from the site (admins)")]
+    EXTRA_HELP = [("enter", "open the post or comment"), ("w", "write a private message"),
+                  ("B", "ban / unban from the site (admins)"), *CONTENT_HELP,
+                  ("*", "on this screen: star / unstar this user")]
 
     def __init__(self, username: str | None = None, person_id: int | None = None):
         super().__init__()
@@ -30,7 +33,7 @@ class PersonScreen(LutiScreen):
         self.person: Person | None = None
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield SafeHeader()
         yield Static("", id="person-head")
         yield ItemList(id="person-items")
         yield Footer()
@@ -46,20 +49,7 @@ class PersonScreen(LutiScreen):
         if res is None:
             return
         self.person, items = res
-        p = self.person
-        flags = [f for f, on_ in (("[b red]admin[/]", p.admin), ("[red]banned[/]", p.banned),
-                                  ("[dim]bot[/]", p.bot), ("[red]deleted[/]", p.deleted)) if on_]
-        stats = []
-        if p.post_count is not None:
-            stats.append(f"{p.post_count} posts")
-        if p.comment_count is not None:
-            stats.append(f"{p.comment_count} comments")
-        lines = [f"[b cyan]{escape(p.handle)}[/] {escape(p.display_name or '')} {' '.join(flags)}",
-                 f"[dim]joined {ago(p.published)} ago · {' · '.join(stats)}[/]"]
-        if p.bio:
-            lines.append(escape(p.bio.strip()[:400]))
-        self.query_one("#person-head", Static).update("\n".join(lines))
-        self.sub_title = p.handle
+        self._render_head()
         await self.query_one(ItemList).set_items(items)
 
     @on(ItemList.Selected)
@@ -70,6 +60,44 @@ class PersonScreen(LutiScreen):
         obj = self.query_one(ItemList).current
         if obj is not None:
             self.open_object(obj)
+
+    def _render_head(self) -> None:
+        p = self.person
+        if p is None:
+            return
+        flags = [f for f, on_ in (("[b red]admin[/]", p.admin), ("[red]banned[/]", p.banned),
+                                  ("[dim]bot[/]", p.bot), ("[red]deleted[/]", p.deleted)) if on_]
+        stats = []
+        if p.post_count is not None:
+            stats.append(f"{p.post_count} posts")
+        if p.comment_count is not None:
+            stats.append(f"{p.comment_count} comments")
+        star = " [b yellow]★ starred[/]" if qualified_name(p) in STARRED else " [dim](* to star)[/]"
+        lines = [f"[b cyan]{escape(p.handle)}[/] {escape(p.display_name or '')} {' '.join(flags)}{star}",
+                 f"[dim]joined {ago(p.published)} ago · {' · '.join(stats)}[/]"]
+        if p.bio:
+            lines.append(escape(p.bio.strip()[:400]))
+        self.query_one("#person-head", Static).update("\n".join(lines))
+        self.sub_title = p.handle
+
+    def selected_post(self) -> Post | None:
+        obj = self.query_one(ItemList).current
+        if isinstance(obj, Post):
+            return obj
+        if isinstance(obj, Comment):
+            return Post(id=obj.post_id, title=obj.post_title)
+        return None
+
+    def selected_comment(self) -> Comment | None:
+        obj = self.query_one(ItemList).current
+        return obj if isinstance(obj, Comment) else None
+
+    def selected_person(self) -> Person | None:
+        return self.person
+
+    def after_star_change(self) -> None:
+        super().after_star_change()
+        self._render_head()
 
     def action_message(self) -> None:
         if self.person is None or self.need_login():

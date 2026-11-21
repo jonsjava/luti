@@ -7,13 +7,23 @@ from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical, VerticalScroll
-from textual.widgets import Footer, Header, Markdown, Static, Tree
+from textual.widgets import Footer, Markdown, Static, Tree
 from textual.widgets.tree import TreeNode
 
-from ..api import COMMENT_SORTS
-from ..models import Comment, Post, build_comment_tree, CommentNode
-from ..widgets import ago, one_line, person_tag, plural, render_comment_head, vote_mark
-from .base import LutiScreen
+from ...api import COMMENT_SORTS
+from ...media import probe_kind
+from ...models import Comment, CommentNode, Post, build_comment_tree
+from .. import media as tmedia
+from ..widgets import (
+    SafeHeader,
+    ago,
+    one_line,
+    person_tag,
+    plural,
+    render_comment_head,
+    vote_mark,
+)
+from .base import CONTENT_BINDINGS, CONTENT_HELP, LutiScreen
 from .dialogs import BanDialog, PromptDialog
 
 
@@ -45,25 +55,30 @@ class CommentTree(Tree):
 
 class PostScreen(LutiScreen):
     HELP_TITLE = "Post"
+    SUB_TITLE = "post"
     BINDINGS = [
         Binding("u", "vote('up')", "Upvote"),
         Binding("d", "vote('down')", "Downvote"),
         Binding("s", "save", "Save"),
         Binding("r", "reply", "Reply"),
         Binding("space", "toggle", "Collapse", show=False),
-        Binding("o", "sort", "Sort"),
+        Binding("S", "sort", "Sort"),
         Binding("a", "author", "Author"),
-        Binding("c", "community", "Community", show=False),
-        Binding("p", "focus_post", "Post body", show=False),
+        Binding("number_sign", "community", "Community", show=False, key_display="#"),
+        Binding("b", "focus_post", "Post body", show=False),
+        Binding("v", "reveal", "Reveal NSFW", show=False),
         Binding("x", "remove", "Remove", show=False),
         Binding("B", "ban", "Ban/unban author", show=False),
         Binding("!", "report", "Report", show=False),
         Binding("R", "refresh", "Refresh"),
+        *CONTENT_BINDINGS,
     ]
     EXTRA_HELP = [("space / enter", "collapse / expand a thread"), ("h / l", "collapse / expand"),
-                  ("p", "scroll the post body"), ("c", "open the community"),
+                  ("b", "scroll the post body"), ("#", "open the community"), ("S", "comment sort"),
+                  ("v", "reveal NSFW media"),
                   ("x", "remove / restore (moderators)"), ("B", "ban / unban the author in the community"),
-                  ("!", "report"), ("", "u/d/s/r act on the highlighted comment, or the post at the top")]
+                  ("!", "report"), ("", "u/d/s/r act on the highlighted comment, or the post at the top"),
+                  *CONTENT_HELP]
 
     def __init__(self, post_id: int, focus_comment: int | None = None):
         super().__init__()
@@ -74,20 +89,21 @@ class PostScreen(LutiScreen):
         self.comments: dict[int, Comment] = {}
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield SafeHeader()
         with Vertical(id="post-layout"):
             with VerticalScroll(id="post-body"):
                 yield Static("", id="post-head")
+                yield Vertical(id="post-media")
                 yield Markdown("", id="post-md")
             tree: CommentTree = CommentTree("comments", id="comments")
             tree.show_root = True
             yield tree
             with VerticalScroll(id="comment-detail"):
                 yield Markdown("", id="comment-md")
+                yield Vertical(id="comment-media")
         yield Footer()
 
     def on_mount(self) -> None:
-        self.sub_title = "post"
         self.query_one(CommentTree).focus()
         self.load()
 
@@ -117,8 +133,11 @@ class PostScreen(LutiScreen):
         post = await self.guard(self.lemmy.post(self.post_id))
         if post is None:
             return
+        first_load = self.post is None or self.post.id != post.id
         self.post = post
         await self.query_one("#post-md", Markdown).update(post.body or "")
+        if first_load:
+            await self._mount_post_media(post)
         comments = await self.guard(self.lemmy.comments(self.post_id, sort=self.sort)) or []
         self.comments = {c.id: c for c in comments}
         self._render_head()
@@ -137,6 +156,37 @@ class PostScreen(LutiScreen):
         if target is None or not self._move_to(target):
             tree.move_cursor(tree.root)
         await self._show_detail()
+
+    async def _mount_post_media(self, post: Post) -> None:
+        box = self.query_one("#post-media", Vertical)
+        await box.remove_children()
+        items = []
+        main = tmedia.post_media(post)
+        if main is None and post.media_kind == "link" and post.url and not post.url_content_type:
+            # the server didn't say what the link is: one cheap HEAD request
+            if await probe_kind(post.url, self.luti.image_cache._client()) == "image":
+                main = tmedia.Media("image", post.url, post.url, post.alt_text or "", post.nsfw)
+            if not self.alive:
+                return
+        if main is not None:
+            items.append(main)
+        for m in tmedia.markdown_images(post.body):
+            m.nsfw = post.nsfw
+            items.append(m)
+        for m in items:
+            viewer = tmedia.viewer_for(m)
+            if viewer:
+                await box.mount(viewer.mount(m, self.luti.image_cache, revealed=self.luti.nsfw_revealed(m.nsfw)))
+
+    def action_reveal(self) -> None:
+        for panel in self.query(tmedia.ImagePanel):
+            panel.reveal()
+
+    def selected_post(self) -> Post | None:
+        return self.post
+
+    def selected_comment(self) -> Comment | None:
+        return self.current_comment()
 
     def _add_nodes(self, parent: TreeNode, nodes: list[CommentNode]) -> None:
         for n in nodes:
@@ -183,8 +233,15 @@ class PostScreen(LutiScreen):
     async def _show_detail(self) -> None:
         c = self.current_comment()
         md = self.query_one("#comment-md", Markdown)
+        box = self.query_one("#comment-media", Vertical)
+        await box.remove_children()
+        if c is not None and not (c.removed or c.deleted):
+            nsfw = bool(self.post and self.post.nsfw)
+            for m in tmedia.markdown_images(c.content):
+                m.nsfw = nsfw
+                await box.mount(tmedia.ImageViewer().mount(m, self.luti.image_cache, revealed=self.luti.nsfw_revealed(nsfw)))
         if c is None:
-            hint = "_Post selected: u/d vote, s save, r comment. j/k to move through comments._"
+            hint = "_Post selected: u/d vote, s save, r comment, o open link, i image. j/k to move through comments._"
             await md.update(hint)
             return
         head = f"**{c.creator.handle if c.creator else '?'}** · {c.score} points · {ago(c.published)}"

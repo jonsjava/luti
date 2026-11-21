@@ -15,14 +15,32 @@ cursors.
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 from typing import Any, AsyncIterator
 
 import httpx
 
+from . import __version__
+from .errors import (  # noqa: F401  (re-exported for `from luti.client import ...`)
+    ApiError,
+    AuthError,
+    ConnectionFailed,
+    LutiError,
+    MfaRequired,
+    NotFound,
+    PermissionDenied,
+    RateLimited,
+    UnsupportedOp,
+    UnsupportedOperation,
+    VersionDetectError,
+    error_for,
+)
 from .spec import load_spec
 
-USER_AGENT = "luti-tui/1.0 (+https://github.com/jonsjava/luti)"
+log = logging.getLogger("luti")
+
+USER_AGENT = f"luti/{__version__} (+https://github.com/jonsjava/luti)"
 ENUM_FIELDS = ("sort", "type_", "listing_type")
 
 # Corrections to spec/endpoints.json entries found wrong against the live
@@ -45,83 +63,6 @@ def apply_spec_fixes(spec: dict[str, Any]) -> dict[str, Any]:
             continue
         ops[op] = {**ops[op], version: {**entry, **patch}}
     return {**spec, "ops": ops}
-
-
-# --------------------------------------------------------------------------
-# errors
-# --------------------------------------------------------------------------
-class LutiError(Exception):
-    """Base class for luti client errors."""
-
-
-class ConnectionFailed(LutiError):
-    """The instance could not be reached."""
-
-
-class VersionDetectError(LutiError):
-    """Neither /api/v4/site nor /api/v3/site answered like Lemmy."""
-
-
-class UnsupportedOp(LutiError):
-    """The op has no route on this API version."""
-
-    def __init__(self, op: str, version: str):
-        super().__init__(f"{op} is not available on Lemmy API {version}")
-        self.op = op
-        self.version = version
-
-
-class ApiError(LutiError):
-    """HTTP failure or a Lemmy {"error": ...} body."""
-
-    def __init__(self, op: str, status: int, error: str, message: str | None = None):
-        self.op = op
-        self.status = status
-        self.error = error
-        self.message = message
-        detail = f"{error}: {message}" if message and message != error else error
-        super().__init__(f"{op} failed (HTTP {status}): {detail}")
-
-
-class AuthError(ApiError):
-    """Not logged in, bad credentials or an expired token."""
-
-
-class MfaRequired(AuthError):
-    """The account needs a TOTP code (missing_totp_token / incorrect_totp_token)."""
-
-
-class NotFound(ApiError):
-    pass
-
-
-class PermissionDenied(ApiError):
-    pass
-
-
-class RateLimited(ApiError):
-    pass
-
-
-_AUTH_CODES = {"not_logged_in", "incorrect_login", "invalid_auth_token", "token_not_found"}
-_MFA_CODES = {"missing_totp_token", "incorrect_totp_token"}
-_PERM_CODES = {"not_a_moderator", "not_an_admin", "not_higher_mod", "not_higher_admin", "no_admins"}
-
-
-def _make_error(op: str, status: int, error: str, message: str | None) -> ApiError:
-    if error in _MFA_CODES:
-        cls: type[ApiError] = MfaRequired
-    elif error in _AUTH_CODES or status == 401:
-        cls = AuthError
-    elif error in _PERM_CODES or status == 403:
-        cls = PermissionDenied
-    elif error == "rate_limit_error" or status == 429:
-        cls = RateLimited
-    elif status == 404 or error.endswith("not_found") or error.startswith("couldnt_find"):
-        cls = NotFound
-    else:
-        cls = ApiError
-    return cls(op, status, error, message)
 
 
 # --------------------------------------------------------------------------
@@ -244,11 +185,21 @@ def normalize_instance(instance: str) -> str:
 # client
 # --------------------------------------------------------------------------
 class LemmyClient:
+    """Async Lemmy client. Works on its own: no config files, no prompts.
+
+    instance:    base URL ("lemmy.world" or "https://lemmy.world")
+    token:       a JWT from an earlier login, or None
+    api:         "v3" / "v4" to skip detection, or None to detect (v4 preferred)
+    http_client: an httpx.AsyncClient to use (timeouts, proxies, mocking);
+                 the caller keeps ownership and closes it
+    """
+
     def __init__(
         self,
         instance: str,
         token: str | None = None,
         api: str | None = None,
+        http_client: httpx.AsyncClient | None = None,
         *,
         timeout: float = 20.0,
         transport: httpx.AsyncBaseTransport | None = None,
@@ -260,12 +211,18 @@ class LemmyClient:
         self.version: str | None = api
         self.site: dict | None = None
         self.spec = apply_spec_fixes(load_spec())
-        self._http = httpx.AsyncClient(
+        self._owns_http = http_client is None
+        self._http = http_client or httpx.AsyncClient(
             timeout=timeout,
             transport=transport,
             headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
             follow_redirects=True,
         )
+
+    @property
+    def http(self) -> httpx.AsyncClient:
+        """The underlying httpx client."""
+        return self._http
 
     async def __aenter__(self) -> "LemmyClient":
         return self
@@ -274,7 +231,8 @@ class LemmyClient:
         await self.aclose()
 
     async def aclose(self) -> None:
-        await self._http.aclose()
+        if self._owns_http:
+            await self._http.aclose()
 
     # -- version detection -------------------------------------------------
     async def detect(self) -> str:
@@ -296,6 +254,7 @@ class LemmyClient:
                     last = e
                     continue
                 if isinstance(body, dict) and field in body:
+                    log.debug("detected Lemmy API %s (%s) at %s", v, body.get(field), self.instance)
                     self.version = v
                     self.site = body
                     return v
@@ -315,10 +274,11 @@ class LemmyClient:
 
     # -- requests ------------------------------------------------------------
     def _auth_headers(self) -> dict[str, str]:
-        if not self.token:
-            return {}
-        auth = self.spec["auth"]
-        return {auth["header"]: f"{auth['scheme']} {self.token}"}
+        headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+        if self.token:
+            auth = self.spec["auth"]
+            headers[auth["header"]] = f"{auth['scheme']} {self.token}"
+        return headers
 
     async def call(self, op: str, **params: Any) -> Any:
         version = await self.detect()
@@ -326,10 +286,11 @@ class LemmyClient:
             raise KeyError(f"unknown op {op!r}")
         entry = self.spec["ops"][op][version]
         if entry is None:
-            raise UnsupportedOp(op, version)
+            raise UnsupportedOperation(op, version)
         wire = transform_params(op, version, params, self.spec)
         url = f"{self.instance}/api/{version}/{entry['path']}"
         method = entry["method"]
+        log.debug("%s %s %s", op, method, url)
         try:
             if method == "GET":
                 q = {k: (str(v).lower() if isinstance(v, bool) else v) for k, v in wire.items()}
@@ -354,10 +315,10 @@ class LemmyClient:
         except ValueError:
             data = None
         if isinstance(data, dict) and data.get("error"):
-            raise _make_error(op, r.status_code, str(data["error"]), data.get("message"))
+            raise error_for(op, r.status_code, str(data["error"]), data.get("message"))
         if r.status_code >= 400:
             text = r.text.strip()[:200] or r.reason_phrase
-            raise _make_error(op, r.status_code, f"http_{r.status_code}", text)
+            raise error_for(op, r.status_code, f"http_{r.status_code}", text)
         if data is None:
             raise ApiError(op, r.status_code, "bad_json", r.text[:200])
         return data

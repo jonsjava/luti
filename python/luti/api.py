@@ -73,6 +73,12 @@ class Lemmy:
     async def aclose(self) -> None:
         await self.client.aclose()
 
+    async def __aenter__(self) -> "Lemmy":
+        return self
+
+    async def __aexit__(self, *exc: Any) -> None:
+        await self.aclose()
+
     def _pager(self, op: str, mapper: Callable[[dict], T], limit: int = 20, **params: Any) -> ModelPager[T]:
         return ModelPager(self.client.pager(op, limit, **params), mapper)
 
@@ -129,9 +135,9 @@ class Lemmy:
         return Post.parse(self.version, data["post_view"])
 
     async def create_post(self, community_id: int, title: str, body: str | None = None, url: str | None = None,
-                          nsfw: bool | None = None) -> Post:
+                          nsfw: bool | None = None, alt_text: str | None = None) -> Post:
         data = await self.client.call("post.create", community_id=community_id, name=title, body=body or None,
-                                      url=url or None, nsfw=nsfw)
+                                      url=url or None, nsfw=nsfw, alt_text=alt_text or None)
         return Post.parse(self.version, data["post_view"])
 
     async def vote_post(self, post_id: int, vote: str) -> Post:

@@ -5,4 +5,4 @@ dist/
 build/
 .pytest_cache/
 # bundled at build time from ../spec; never commit a copy
-luti_tui/endpoints.json
+luti/endpoints.json

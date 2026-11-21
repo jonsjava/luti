@@ -1,6 +1,8 @@
 import pytest
+from conftest import fx
 
-from luti_tui.models import (
+from luti.client import extract_items
+from luti.models import (
     Comment,
     Community,
     Me,
@@ -14,9 +16,6 @@ from luti_tui.models import (
     UnreadCounts,
     build_comment_tree,
 )
-from luti_tui.client import extract_items
-
-from conftest import fx
 
 V = ("v3", "v4")
 
@@ -224,7 +223,7 @@ def test_modlog_v4():
 
 @pytest.mark.parametrize("v", V)
 def test_search_results(v):
-    from luti_tui.client import extract_items as ex
+    from luti.client import extract_items as ex
     results = ex("search", v, fx(f"{v}_search"))
     posts = [Post.parse(v, {k: x for k, x in r.items() if k != "_kind"}) for r in results if r["_kind"] == "post"]
     assert any(p.title == "Welcome to lutidev" for p in posts)

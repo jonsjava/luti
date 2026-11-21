@@ -3,8 +3,9 @@ import json
 import httpx
 import pytest
 import respx
+from conftest import fx
 
-from luti_tui.client import (
+from luti.client import (
     ApiError,
     AuthError,
     ConnectionFailed,
@@ -17,8 +18,6 @@ from luti_tui.client import (
     VersionDetectError,
     normalize_instance,
 )
-
-from conftest import fx
 
 BASE = "https://lemmy.test"
 
@@ -256,7 +255,7 @@ async def test_pager_v3_empty_first_page(mock):
 
 
 async def test_login_retries_duplicate_token(mock, monkeypatch):
-    import luti_tui.client as client_mod
+    import luti.client as client_mod
 
     async def no_sleep(_):
         return None

@@ -3,7 +3,14 @@ import stat
 
 import pytest
 
-from luti_tui.config import Profile, config_root, format_config, list_profiles, parse_config, valid_profile_name
+from luti.config import (
+    Profile,
+    config_root,
+    format_config,
+    list_profiles,
+    parse_config,
+    valid_profile_name,
+)
 
 
 def test_config_root_uses_xdg(isolated_config):
@@ -126,7 +133,7 @@ class FakeKeyring:
 
 
 def test_keyring_used_instead_of_token_file(monkeypatch):
-    import luti_tui.config as cfg
+    import luti.config as cfg
 
     kr = FakeKeyring()
     monkeypatch.setattr(cfg, "_keyring", lambda: kr)
@@ -142,7 +149,7 @@ def test_keyring_used_instead_of_token_file(monkeypatch):
 
 
 def test_keyring_falls_back_to_bash_token_file(monkeypatch):
-    import luti_tui.config as cfg
+    import luti.config as cfg
 
     monkeypatch.setattr(cfg, "_keyring", lambda: FakeKeyring())
     p = Profile(name="default")
@@ -152,7 +159,7 @@ def test_keyring_falls_back_to_bash_token_file(monkeypatch):
 
 
 def test_no_keyring_env_disables_keyring(monkeypatch):
-    import luti_tui.config as cfg
+    import luti.config as cfg
 
     monkeypatch.setenv("LUTI_NO_KEYRING", "1")
     assert cfg._keyring() is None
