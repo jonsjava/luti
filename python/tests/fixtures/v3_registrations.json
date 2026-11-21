@@ -1,0 +1,166 @@
+{
+ "registration_applications": [
+  {
+   "registration_application": {
+    "id": 3,
+    "local_user_id": 4,
+    "answer": "luti dev seed user",
+    "published": "2026-11-21T03:34:35.035792Z"
+   },
+   "creator_local_user": {
+    "id": 4,
+    "person_id": 5,
+    "show_nsfw": false,
+    "theme": "browser",
+    "default_sort_type": "Active",
+    "default_listing_type": "Local",
+    "interface_language": "browser",
+    "show_avatars": true,
+    "send_notifications_to_email": false,
+    "show_scores": true,
+    "show_bot_accounts": true,
+    "show_read_posts": true,
+    "email_verified": false,
+    "accepted_application": false,
+    "open_links_in_new_tab": false,
+    "blur_nsfw": true,
+    "auto_expand": false,
+    "infinite_scroll_enabled": false,
+    "admin": false,
+    "post_listing_mode": "List",
+    "totp_2fa_enabled": false,
+    "enable_keyboard_navigation": false,
+    "enable_animated_images": true,
+    "collapse_bot_comments": false,
+    "last_donation_notification": "2026-01-28T14:12:04.315792Z"
+   },
+   "creator": {
+    "id": 5,
+    "name": "carol",
+    "banned": false,
+    "published": "2026-11-21T03:34:35.035792Z",
+    "actor_id": "http://lemmy019.localhost/u/carol",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   }
+  },
+  {
+   "registration_application": {
+    "id": 2,
+    "local_user_id": 3,
+    "answer": "luti dev seed user",
+    "admin_id": 2,
+    "published": "2026-11-21T03:34:34.703459Z"
+   },
+   "creator_local_user": {
+    "id": 3,
+    "person_id": 4,
+    "show_nsfw": false,
+    "theme": "browser",
+    "default_sort_type": "Active",
+    "default_listing_type": "Local",
+    "interface_language": "browser",
+    "show_avatars": true,
+    "send_notifications_to_email": false,
+    "show_scores": true,
+    "show_bot_accounts": true,
+    "show_read_posts": true,
+    "email_verified": false,
+    "accepted_application": true,
+    "open_links_in_new_tab": false,
+    "blur_nsfw": true,
+    "auto_expand": false,
+    "infinite_scroll_enabled": false,
+    "admin": false,
+    "post_listing_mode": "List",
+    "totp_2fa_enabled": false,
+    "enable_keyboard_navigation": false,
+    "enable_animated_images": true,
+    "collapse_bot_comments": false,
+    "last_donation_notification": "2026-07-06T09:10:16.185059Z"
+   },
+   "creator": {
+    "id": 4,
+    "name": "bob",
+    "banned": false,
+    "published": "2026-11-21T03:34:34.703459Z",
+    "actor_id": "http://lemmy019.localhost/u/bob",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   },
+   "admin": {
+    "id": 2,
+    "name": "luti_admin",
+    "banned": false,
+    "published": "2026-11-21T03:33:02.383471Z",
+    "actor_id": "http://lemmy019.localhost/u/luti_admin",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   }
+  },
+  {
+   "registration_application": {
+    "id": 1,
+    "local_user_id": 2,
+    "answer": "luti dev seed user",
+    "admin_id": 2,
+    "published": "2026-11-21T03:34:34.141953Z"
+   },
+   "creator_local_user": {
+    "id": 2,
+    "person_id": 3,
+    "show_nsfw": false,
+    "theme": "browser",
+    "default_sort_type": "Active",
+    "default_listing_type": "Local",
+    "interface_language": "browser",
+    "show_avatars": true,
+    "send_notifications_to_email": false,
+    "show_scores": true,
+    "show_bot_accounts": true,
+    "show_read_posts": true,
+    "email_verified": false,
+    "accepted_application": true,
+    "open_links_in_new_tab": false,
+    "blur_nsfw": true,
+    "auto_expand": false,
+    "infinite_scroll_enabled": false,
+    "admin": false,
+    "post_listing_mode": "List",
+    "totp_2fa_enabled": false,
+    "enable_keyboard_navigation": false,
+    "enable_animated_images": true,
+    "collapse_bot_comments": false,
+    "last_donation_notification": "2026-02-23T14:19:02.375553Z"
+   },
+   "creator": {
+    "id": 3,
+    "name": "alice",
+    "banned": false,
+    "published": "2026-11-21T03:34:34.141953Z",
+    "actor_id": "http://lemmy019.localhost/u/alice",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   },
+   "admin": {
+    "id": 2,
+    "name": "luti_admin",
+    "banned": false,
+    "published": "2026-11-21T03:33:02.383471Z",
+    "actor_id": "http://lemmy019.localhost/u/luti_admin",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   }
+  }
+ ]
+}

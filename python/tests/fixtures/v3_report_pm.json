@@ -1,0 +1,49 @@
+{
+ "private_message_reports": [
+  {
+   "private_message_report": {
+    "id": 1,
+    "creator_id": 3,
+    "private_message_id": 3,
+    "original_pm_text": "spammy pm",
+    "reason": "fixture pm report",
+    "resolved": false,
+    "published": "2026-11-21T03:43:52.739790Z"
+   },
+   "private_message": {
+    "id": 3,
+    "creator_id": 4,
+    "recipient_id": 3,
+    "content": "spammy pm",
+    "deleted": false,
+    "read": false,
+    "published": "2026-11-21T03:43:52.727062Z",
+    "ap_id": "http://lemmy019.localhost/private_message/3",
+    "local": true,
+    "removed": false
+   },
+   "private_message_creator": {
+    "id": 4,
+    "name": "bob",
+    "banned": false,
+    "published": "2026-11-21T03:34:34.703459Z",
+    "actor_id": "http://lemmy019.localhost/u/bob",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   },
+   "creator": {
+    "id": 3,
+    "name": "alice",
+    "banned": false,
+    "published": "2026-11-21T03:34:34.141953Z",
+    "actor_id": "http://lemmy019.localhost/u/alice",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   }
+  }
+ ]
+}
