@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2034  # CLI_* and LUTI_* globals set here are read by bash/cli and bash/lib
+# luti - a Lemmy client for the terminal (Lemmy 0.19 / API v3 and 1.0 / API v4).
+# This file is argument parsing and display on top of the luti library
+# (lib/luti.sh), which can also be sourced by other scripts.
+set -uo pipefail
+
+_cli_self=$(readlink -f "${BASH_SOURCE[0]}")
+_cli_dir=$(dirname "$_cli_self")
+# Repo layout: bash/luti + bash/lib + bash/cli
+# Installed:   PREFIX/bin/luti + PREFIX/share/luti/{lib,cli,spec}
+if [[ -n ${LUTI_HOME:-} ]]; then
+	_cli_lib="$LUTI_HOME/lib"
+elif [[ -r $_cli_dir/lib/luti.sh ]]; then
+	_cli_lib="$_cli_dir/lib"
+else
+	_cli_lib="$_cli_dir/../share/luti/lib"
+fi
+[[ -r $_cli_lib/luti.sh ]] || {
+	echo "luti: cannot find the luti library (looked in $_cli_lib; set LUTI_HOME)" >&2
+	exit 1
+}
+# shellcheck source=lib/luti.sh
+. "$_cli_lib/luti.sh" || exit 1
+CLI_DIR=$(cd "$LUTI_LIB_DIR/../cli" && pwd) || exit 1
+for _m in common cmd_basic cmd_content cmd_mod cmd_watch; do
+	# shellcheck source=/dev/null
+	. "$CLI_DIR/$_m.sh"
+done
+unset _m _cli_self _cli_dir _cli_lib
+
+cli_usage() {
+	cat <<'EOF'
+Usage: luti [GLOBAL OPTIONS] COMMAND [ARGS]
+
+A Lemmy client for the terminal. Works with Lemmy 0.19 (API v3) and 1.0 (API v4).
+Run 'luti COMMAND --help' for details on any command.
+
+Setup:
+  login                 Log in and save a token for the profile
+  logout                Log out and delete the saved token
+  whoami                Show the logged-in account
+
+Reading:
+  feed                  List posts (--sort --time --type --community)
+  post view ID          Show a post and its comments
+  open post|comment ID  Open in the browser (--link, --media, --origin, --print)
+  search QUERY          Search posts, comments, communities and users
+  community list|show   Browse communities
+  user show NAME        Show a user and their recent content
+
+Favorites:
+  star add|remove|list  Star users whose new posts you want queued
+  stargaze [next|clear] Read the queue of new posts from starred users
+
+Writing:
+  post create|edit|delete|save|vote|report
+  comment reply|edit|delete|vote|report
+  pm send|list          Private messages
+  community follow|block
+
+Inbox:
+  inbox                 Replies, mentions and messages (notifications on 1.0)
+  notify read [ID]      Mark one notification (v4) or everything as read
+
+Moderation:
+  mod reports|resolve|remove|restore|lock|feature|ban|unban
+  modlog                Show the moderation log
+
+Admin:
+  admin registrations|approve|deny|ban|unban|purge
+
+Monitoring:
+  watch [reports|registrations|inbox|stars|all]
+                        Poll and alert (bell, sound, notification, hook) on new items
+
+Global options (allowed anywhere before a lone --):
+  --profile NAME        Use profile NAME (default: default, or $LUTI_PROFILE)
+  --instance URL        Use this instance instead of the profile's
+  --api v3|v4           Skip version detection
+  --json                Print the raw API response
+  --norm                Print luti's normalized JSON (same shape on v3 and v4)
+  -y, --yes             Do not ask for confirmation
+  -h, --help            Show help (also: luti COMMAND --help)
+  --version             Show luti's version
+
+Config lives in ${XDG_CONFIG_HOME:-~/.config}/luti/<profile>/ (config, token, stars).
+EOF
+}
+
+CLI_FORCED_API=""
+
+cli_main() {
+	local args=() a profile=${LUTI_PROFILE:-default} instance="" api=""
+	while [[ $# -gt 0 ]]; do
+		a=$1
+		case $a in
+			--)
+				shift
+				args+=("$@")
+				break
+				;;
+			--profile)
+				cli_need_arg "$@"
+				profile=$2
+				shift
+				;;
+			--profile=*) profile=${a#*=} ;;
+			--instance)
+				cli_need_arg "$@"
+				instance=$2
+				shift
+				;;
+			--instance=*) instance=${a#*=} ;;
+			--api)
+				cli_need_arg "$@"
+				api=$2
+				shift
+				;;
+			--api=*) api=${a#*=} ;;
+			--json) CLI_JSON=1 ;;
+			--norm) CLI_NORM=1 ;;
+			-y | --yes) CLI_YES=1 ;;
+			*) args+=("$a") ;;
+		esac
+		shift
+	done
+	[[ -z $api || $api == v3 || $api == v4 ]] || cli_die "--api must be v3 or v4"
+	luti_config_load "$profile" || exit 1
+	if [[ -n $instance ]]; then
+		instance=$(luti_normalize_instance "$instance")
+		[[ $instance == "$LUTI_INSTANCE" ]] || LUTI_API=$LUTI_CONFIG_API
+		LUTI_INSTANCE=$instance
+	fi
+	if [[ -n $api ]]; then
+		LUTI_API=$api
+		CLI_FORCED_API=$api
+	fi
+	[[ $CLI_JSON == 1 ]] && LUTI_RAW=1
+	[[ -r $(_luti_spec_file) ]] || cli_die "cannot read endpoint spec at $(_luti_spec_file) (set LUTI_SPEC)"
+
+	set -- "${args[@]+"${args[@]}"}"
+	local cmd=${1:-}
+	[[ $# -gt 0 ]] && shift
+	case $cmd in
+		"" | -h | --help | help)
+			cli_usage
+			[[ -n $cmd ]] && return 0
+			return 1
+			;;
+		--version | version) printf 'luti %s\n' "$LUTI_VERSION" ;;
+		login) cmd_login "$@" ;;
+		logout) cmd_logout "$@" ;;
+		whoami) cmd_whoami "$@" ;;
+		feed) cmd_feed "$@" ;;
+		post) cmd_post "$@" ;;
+		comment) cmd_comment "$@" ;;
+		open) cmd_open "$@" ;;
+		inbox) cmd_inbox "$@" ;;
+		notify) cmd_notify "$@" ;;
+		pm) cmd_pm "$@" ;;
+		community) cmd_community "$@" ;;
+		user) cmd_user "$@" ;;
+		search) cmd_search "$@" ;;
+		mod) cmd_mod "$@" ;;
+		modlog) cmd_modlog "$@" ;;
+		admin) cmd_admin "$@" ;;
+		watch) cmd_watch "$@" ;;
+		star | stars) cmd_star "$@" ;;
+		stargaze) cmd_stargaze "$@" ;;
+		*) cli_die "unknown command '$cmd' (see luti --help)" ;;
+	esac
+}
+
+cli_main "$@"

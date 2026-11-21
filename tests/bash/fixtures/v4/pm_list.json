@@ -1,0 +1,109 @@
+{
+  "items": [
+    {
+      "notification": {
+        "id": 21,
+        "recipient_id": 5,
+        "read": false,
+        "published_at": "2026-11-21T03:49:39.590836Z",
+        "kind": "private_message",
+        "private_message_id": 4,
+        "creator_id": 0
+      },
+      "data": {
+        "type_": "private_message",
+        "private_message": {
+          "id": 4,
+          "creator_id": 4,
+          "recipient_id": 5,
+          "content": "hi bob from v4",
+          "deleted": false,
+          "published_at": "2026-11-21T03:49:39.572190Z",
+          "ap_id": "http://lemmy10.localhost/private_message/4",
+          "local": true,
+          "removed": false,
+          "deleted_by_recipient": false
+        },
+        "creator": {
+          "id": 4,
+          "name": "alice",
+          "published_at": "2026-11-21T03:34:38.067332Z",
+          "ap_id": "http://lemmy10.localhost/u/alice",
+          "local": true,
+          "last_refreshed_at": "2026-11-21T03:34:38.067332Z",
+          "deleted": false,
+          "bot_account": false,
+          "instance_id": 1,
+          "post_count": 4,
+          "comment_count": 2
+        },
+        "recipient": {
+          "id": 5,
+          "name": "bob",
+          "published_at": "2026-11-21T03:34:38.419110Z",
+          "ap_id": "http://lemmy10.localhost/u/bob",
+          "local": true,
+          "last_refreshed_at": "2026-11-21T03:34:38.419110Z",
+          "deleted": false,
+          "bot_account": false,
+          "instance_id": 1,
+          "post_count": 1,
+          "comment_count": 6
+        }
+      }
+    },
+    {
+      "notification": {
+        "id": 10,
+        "recipient_id": 4,
+        "read": true,
+        "published_at": "2026-11-21T03:43:54.316700Z",
+        "kind": "private_message",
+        "private_message_id": 3,
+        "creator_id": 0
+      },
+      "data": {
+        "type_": "private_message",
+        "private_message": {
+          "id": 3,
+          "creator_id": 5,
+          "recipient_id": 4,
+          "content": "spammy pm",
+          "deleted": false,
+          "published_at": "2026-11-21T03:43:54.307148Z",
+          "ap_id": "http://lemmy10.localhost/private_message/3",
+          "local": true,
+          "removed": false,
+          "deleted_by_recipient": false
+        },
+        "creator": {
+          "id": 5,
+          "name": "bob",
+          "published_at": "2026-11-21T03:34:38.419110Z",
+          "ap_id": "http://lemmy10.localhost/u/bob",
+          "local": true,
+          "last_refreshed_at": "2026-11-21T03:34:38.419110Z",
+          "deleted": false,
+          "bot_account": false,
+          "instance_id": 1,
+          "post_count": 1,
+          "comment_count": 6
+        },
+        "recipient": {
+          "id": 4,
+          "name": "alice",
+          "published_at": "2026-11-21T03:34:38.067332Z",
+          "ap_id": "http://lemmy10.localhost/u/alice",
+          "local": true,
+          "last_refreshed_at": "2026-11-21T03:34:38.067332Z",
+          "deleted": false,
+          "bot_account": false,
+          "instance_id": 1,
+          "post_count": 4,
+          "comment_count": 2
+        }
+      }
+    }
+  ],
+  "next_page": "BU0KBxiIGgGjd-uQCLvWGKV7yzf"
+}
