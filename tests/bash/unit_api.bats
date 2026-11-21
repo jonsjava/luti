@@ -6,30 +6,29 @@ setup() {
 	lt_test_config
 	lt_stub_curl
 	lt_load_lib
-	LT_PROFILE=default
-	LT_INSTANCE=https://lemmy.test
-	LT_TOKEN=tok123
+	LUTI_INSTANCE=https://lemmy.test
+	LUTI_TOKEN=tok123
 }
 
 @test "spec is found relative to the script, LUTI_SPEC overrides" {
 	unset LUTI_SPEC
-	[ "$(lt_spec_file)" = "$REPO_ROOT/spec/endpoints.json" ]
+	[ "$(realpath "$(_luti_spec_file)")" = "$REPO_ROOT/spec/endpoints.json" ]
 	LUTI_SPEC=/elsewhere/spec.json
-	[ "$(lt_spec_file)" = /elsewhere/spec.json ]
+	[ "$(_luti_spec_file)" = /elsewhere/spec.json ]
 }
 
 @test "GET params become a URL-encoded query string" {
-	LT_VER=v4
+	LUTI_API=v4
 	stub_respond 200 '{"items":[]}'
-	lt_api post.list '{"limit":5,"community_name":"a b&c","saved_only":true,"page_cursor":null}' >/dev/null
+	luti_api post.list '{"limit":5,"community_name":"a b&c","saved_only":true,"page_cursor":null}' >/dev/null
 	run cat "$STUB_DIR/calls"
 	[ "$output" = "GET https://lemmy.test/api/v4/post/list?limit=5&community_name=a%20b%26c&saved_only=true" ]
 	[ ! -s "$STUB_DIR/body" ]
 }
 
 @test "POST sends the JSON body on stdin and the bearer token as a header" {
-	LT_VER=v4
-	lt_api post.create '{"community_id":2,"name":"hi"}' >/dev/null
+	LUTI_API=v4
+	luti_api post.create '{"community_id":2,"name":"hi"}' >/dev/null
 	[ "$(cat "$STUB_DIR/calls")" = "POST https://lemmy.test/api/v4/post" ]
 	[ "$(jq -c . "$STUB_DIR/body")" = '{"community_id":2,"name":"hi"}' ]
 	grep -qx 'Authorization: Bearer tok123' "$STUB_DIR/headers"
@@ -40,100 +39,132 @@ setup() {
 }
 
 @test "no Authorization header when logged out" {
-	LT_VER=v3
-	LT_TOKEN=""
-	lt_api site.get >/dev/null
+	LUTI_API=v3
+	LUTI_TOKEN=""
+	luti_api site.get >/dev/null
 	refute grep -q Authorization "$STUB_DIR/headers"
 }
 
 @test "version-specific method and path (post.delete)" {
-	LT_VER=v3
-	lt_api post.delete '{"post_id":1,"deleted":true}' >/dev/null
+	LUTI_API=v3
+	luti_api post.delete '{"post_id":1,"deleted":true}' >/dev/null
 	[ "$(cat "$STUB_DIR/calls")" = "POST https://lemmy.test/api/v3/post/delete" ]
-	LT_VER=v4
-	lt_api post.delete '{"post_id":1,"deleted":true}' >/dev/null
+	LUTI_API=v4
+	luti_api post.delete '{"post_id":1,"deleted":true}' >/dev/null
 	[ "$(tail -1 "$STUB_DIR/calls")" = "DELETE https://lemmy.test/api/v4/post" ]
 }
 
 @test "rename_v3 renames fields on v3 only" {
-	LT_VER=v3
-	lt_api admin.ban '{"person_id":3,"ban":true,"remove_or_restore_data":true,"expires_at":99,"reason":"x"}' >/dev/null
+	LUTI_API=v3
+	luti_api admin.ban '{"person_id":3,"ban":true,"remove_or_restore_data":true,"expires_at":99,"reason":"x"}' >/dev/null
 	[ "$(jq -c 'keys' "$STUB_DIR/body")" = '["ban","expires","person_id","reason","remove_data"]' ]
-	LT_VER=v4
-	lt_api admin.ban '{"person_id":3,"ban":true,"remove_or_restore_data":true,"expires_at":99,"reason":"x"}' >/dev/null
+	LUTI_API=v4
+	luti_api admin.ban '{"person_id":3,"ban":true,"remove_or_restore_data":true,"expires_at":99,"reason":"x"}' >/dev/null
 	[ "$(jq -c 'keys' "$STUB_DIR/body")" = '["ban","expires_at","person_id","reason","remove_or_restore_data"]' ]
 }
 
 @test "rename_v3 applies to GET query strings (search_term -> q)" {
-	LT_VER=v3
-	lt_api search '{"search_term":"cats"}' >/dev/null
+	LUTI_API=v3
+	luti_api search '{"search_term":"cats"}' >/dev/null
 	[ "$(cat "$STUB_DIR/calls")" = "GET https://lemmy.test/api/v3/search?q=cats" ]
 }
 
 @test "fixed params are added (pm.list on v4)" {
-	LT_VER=v4
-	lt_api pm.list '{"limit":2}' >/dev/null
+	LUTI_API=v4
+	luti_api pm.list '{"limit":2}' >/dev/null
 	[ "$(cat "$STUB_DIR/calls")" = "GET https://lemmy.test/api/v4/account/notification/list?limit=2&type_=private_message" ]
 }
 
 @test "report lists on v4 send the plural type_ the server expects" {
-	LT_VER=v4
-	lt_api report.list.post '{}' >/dev/null
-	lt_api report.list.pm '{}' >/dev/null
+	LUTI_API=v4
+	luti_api report.list.post '{}' >/dev/null
+	luti_api report.list.pm '{}' >/dev/null
 	run cat "$STUB_DIR/calls"
 	[ "${lines[0]}" = "GET https://lemmy.test/api/v4/report/list?type_=posts" ]
 	[ "${lines[1]}" = "GET https://lemmy.test/api/v4/report/list?type_=private_messages" ]
 }
 
 @test "pick extracts a field (account.get on v3)" {
-	LT_VER=v3
+	LUTI_API=v3
 	stub_respond 200 '{"version":"0.19","my_user":{"local_user_view":{"person":{"name":"me"}}}}'
-	run lt_api account.get
+	run luti_api account.get
 	[ "$status" -eq 0 ]
 	[ "$(jq -r '.local_user_view.person.name' <<<"$output")" = me ]
 }
 
 @test "Lemmy error bodies become a message and non-zero exit" {
-	LT_VER=v4
+	LUTI_API=v4
 	stub_respond 400 '{"error":"couldnt_find_post","message":"nope"}'
-	run lt_api post.get '{"id":1}'
+	run luti_api post.get '{"id":1}'
 	[ "$status" -ne 0 ]
 	[[ $output == *"post.get failed: couldnt_find_post (nope) [HTTP 400]"* ]]
 }
 
 @test "HTTP errors without a JSON body fail too" {
-	LT_VER=v4
+	LUTI_API=v4
 	stub_respond 502 '<html>bad gateway</html>'
-	run lt_api post.get '{"id":1}'
+	run luti_api post.get '{"id":1}'
 	[ "$status" -ne 0 ]
 	[[ $output == *"HTTP 502"* ]]
 }
 
 @test "ops missing on a version are refused before any request" {
-	LT_VER=v3
-	run lt_api notifications.list
+	LUTI_API=v3
+	run luti_api notifications.list
 	[ "$status" -ne 0 ]
 	[[ $output == *"not available on API v3"* ]]
 	[ ! -e "$STUB_DIR/calls" ]
 }
 
-@test "version detection prefers v4 and is cached per profile" {
-	LT_VER=""
-	LT_INSTANCE=https://lemmy.test
-	lt_write_profile default https://lemmy.test ""
-	sed -i '/^api=/d' "$XDG_CONFIG_HOME/luti/default/config"
-	lt_config_load
+@test "version detection prefers v4; the first request detects it once" {
 	stub_respond 200 '{"version":"1.0.0"}'
-	lt_require_version
-	[ "$LT_VER" = v4 ]
+	luti_connect https://lemmy.test/
+	[ "$LUTI_API" = v4 ]
+	[ "$LUTI_INSTANCE" = https://lemmy.test ]
 	[ "$(head -1 "$STUB_DIR/calls")" = "GET https://lemmy.test/api/v4/site" ]
-	[ "$(cat "$XDG_CONFIG_HOME/luti/default/api_cache")" = "v4 https://lemmy.test" ]
-	# Second time: no request.
 	rm "$STUB_DIR/calls"
-	LT_VER=""
-	lt_require_version
-	[ "$LT_VER" = v4 ]
+	LUTI_API=""
+	luti_api site.get >/dev/null
+	luti_api site.get >/dev/null
+	[ "$LUTI_API" = v4 ]
+	[ "$(grep -c /api/v4/site "$STUB_DIR/calls")" -eq 3 ]
+}
+
+@test "luti_connect takes instance, token and API, and checks the API" {
+	luti_connect https://a.test tokA v3
+	[ "$LUTI_INSTANCE $LUTI_TOKEN $LUTI_API" = "https://a.test tokA v3" ]
 	[ ! -e "$STUB_DIR/calls" ]
+	LUTI_API=""
+	run luti_connect https://a.test "" v2
+	[ "$status" -ne 0 ]
+	[[ $output == *"unknown API version 'v2'"* ]]
+	LUTI_INSTANCE=""
+	run luti_connect
+	[ "$status" -ne 0 ]
+}
+
+@test "token rejected gives return code 4" {
+	LUTI_API=v4
+	stub_respond 401 '{"error":"not_logged_in"}'
+	run luti_api account.get
+	[ "$status" -eq 4 ]
+	stub_respond 400 '{"error":"incorrect_login"}'
+	run luti_api account.get
+	[ "$status" -eq 4 ]
+	stub_respond 404 '{"error":"not_found"}'
+	run luti_api post.get '{"id":1}'
+	[ "$status" -eq 1 ]
+	run luti_api no.such.op
+	[ "$status" -eq 2 ]
+	[[ $output == *"unknown op no.such.op"* ]]
+}
+
+@test "luti_api_has checks the current version" {
+	LUTI_API=v3
+	refute luti_api_has notifications.list
+	luti_api_has post.list
+	LUTI_API=v4
+	luti_api_has notifications.list
 }
 
 @test "version detection falls back to v3 when /api/v4 is missing" {
@@ -147,11 +178,11 @@ if [[ $url == */api/v4/site ]]; then printf '404 page\n404'; else printf '{"vers
 SH
 	chmod +x "$BATS_TEST_TMPDIR/bin/curl"
 	PATH="$BATS_TEST_TMPDIR/bin:$PATH"
-	run lt_detect_version https://lemmy.test
+	run luti_detect_version https://lemmy.test
 	[ "$output" = v3 ]
 }
 
 @test "instance URLs are normalized" {
-	[ "$(lt_normalize_instance lemmy.world)" = https://lemmy.world ]
-	[ "$(lt_normalize_instance http://localhost:8536//)" = http://localhost:8536 ]
+	[ "$(luti_normalize_instance lemmy.world)" = https://lemmy.world ]
+	[ "$(luti_normalize_instance http://localhost:8536//)" = http://localhost:8536 ]
 }

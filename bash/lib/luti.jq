@@ -5,9 +5,11 @@
 # Lemmy API v3 (0.19) or v4 (1.0) and returns luti's common shape. Display
 # code only reads the common shapes:
 #
-#   post         {id,title,url,body,community{id,name},creator{id,name},score,upvotes,downvotes,
-#                 comments,published,my_vote("up"|"down"|null),saved,locked,removed,deleted,featured}
-#   comment      {id,post_id,post_title,parent_id,depth,path,content,creator,community,score,upvotes,
+#   post         {id,title,url,url_content_type,thumbnail_url,embed_video_url,alt_text,
+#                 media_kind("image"|"video"|"link"|"none"),body,ap_id,community{id,name},creator{id,name},
+#                 score,upvotes,downvotes,comments,published,my_vote("up"|"down"|null),saved,locked,
+#                 removed,deleted,featured}
+#   comment      {id,ap_id,post_id,post_title,parent_id,depth,path,content,creator,community,score,upvotes,
 #                 downvotes,children,published,my_vote,saved,removed,deleted}
 #   person       {id,name,display_name,bio,published,posts,comments,is_admin,banned,bot}
 #   community    {id,name,title,description,subscribers,posts,comments,
@@ -31,8 +33,22 @@ def path_parent: if . == null then null else split(".") | if length > 2 then (.[
 def path_depth: if . == null then 0 else (split(".") | length) - 2 end;
 
 # ---------- post ----------
-def post_v3: {
-  id: .post.id, title: .post.name, url: .post.url, body: .post.body,
+def media_kind($url; $ctype):
+  if ($ctype // "") | startswith("image/") then "image"
+  elif ($ctype // "") | startswith("video/") then "video"
+  elif $url == null or $url == "" then "none"
+  else ($url | ascii_downcase | sub("[?#].*$"; "") | (capture("\\.(?<e>[a-z0-9]+)$").e // "")) as $e
+    | if ["jpg","jpeg","png","gif","webp","avif","svg","bmp","heic","jxl"] | index($e) then "image"
+      elif ["mp4","webm","mov","m4v","ogv","gifv","mkv"] | index($e) then "video"
+      else "link" end
+  end;
+def media: {
+  url: .url, url_content_type: .url_content_type, thumbnail_url: .thumbnail_url,
+  embed_video_url: .embed_video_url, alt_text: .alt_text,
+  media_kind: media_kind(.url; .url_content_type)
+};
+def post_v3: (.post | media) + {
+  id: .post.id, title: .post.name, body: .post.body, ap_id: .post.ap_id,
   community: (.community | comm), creator: (.creator | who),
   score: .counts.score, upvotes: .counts.upvotes, downvotes: .counts.downvotes,
   comments: .counts.comments, published: .post.published,
@@ -40,8 +56,8 @@ def post_v3: {
   locked: .post.locked, removed: .post.removed, deleted: .post.deleted,
   featured: (.post.featured_community or .post.featured_local)
 };
-def post_v4: {
-  id: .post.id, title: .post.name, url: .post.url, body: .post.body,
+def post_v4: (.post | media) + {
+  id: .post.id, title: .post.name, body: .post.body, ap_id: .post.ap_id,
   community: (.community | comm), creator: (.creator | who),
   score: .post.score, upvotes: .post.upvotes, downvotes: .post.downvotes,
   comments: .post.comments, published: .post.published_at,
@@ -53,7 +69,7 @@ def post($v): if $v == "v4" then post_v4 else post_v3 end;
 
 # ---------- comment ----------
 def comment_v3: {
-  id: .comment.id, post_id: .comment.post_id, post_title: .post.name,
+  id: .comment.id, ap_id: .comment.ap_id, post_id: .comment.post_id, post_title: .post.name,
   parent_id: (.comment.path | path_parent), depth: (.comment.path | path_depth), path: .comment.path,
   content: .comment.content, creator: (.creator | who), community: (.community | comm),
   score: .counts.score, upvotes: .counts.upvotes, downvotes: .counts.downvotes,
@@ -62,7 +78,7 @@ def comment_v3: {
   removed: .comment.removed, deleted: .comment.deleted
 };
 def comment_v4: {
-  id: .comment.id, post_id: .comment.post_id, post_title: .post.name,
+  id: .comment.id, ap_id: .comment.ap_id, post_id: .comment.post_id, post_title: .post.name,
   parent_id: (.comment.path | path_parent), depth: (.comment.path | path_depth), path: .comment.path,
   content: .comment.content, creator: (.creator | who), community: (.community | comm),
   score: .comment.score, upvotes: .comment.upvotes, downvotes: .comment.downvotes,
@@ -107,7 +123,7 @@ def community($v): if $v == "v4" then community_v4 else community_v3 end;
 # ---------- report ----------
 # $type is used on v3, where each report list holds one type; v4 items carry type_.
 def report($v; $type):
-  (if $v == "v4" then .type_ else $type end) as $t
+  (.type_ // $type) as $t
   | (if $v == "v4" then "published_at" else "published" end) as $p
   | if $t == "post" then {
       id: .post_report.id, type: "post", reason: .post_report.reason, resolved: .post_report.resolved,
@@ -233,24 +249,64 @@ def counts_v4: {
 };
 def counts($v): if $v == "v4" then counts_v4 else counts_v3 end;
 
+# ---------- account (whoami) ----------
+def account($v): .local_user_view as $u | {
+  id: $u.person.id, name: $u.person.name, display_name: $u.person.display_name,
+  admin: ($u.local_user.admin // false), moderates: [.moderates[]?.community.name]
+};
+
 # ---------- the list in a response, per spec "list" (string or array of keys) ----------
 def spec_list($list):
   if $list == null then .
   elif ($list | type) == "array" then [ . as $r | $list[] | $r[.][]? ]
   else .[$list] // [] end;
 
-# ---------- display helpers ----------
-def cell: if . == null then "-" elif type == "boolean" then (if . then "yes" else "no" end) else tostring end;
-def oneline: (. // "") | tostring | gsub("[\r\n\t]+"; " ");
-def trunc($n): oneline | if length > $n then .[0:($n - 1)] + "…" else . end;
-def ts: if . == null then "-" else tostring | .[0:16] | sub("T"; " ") end;
-def pad($w): . + ((" " * ($w - length)) // "");
-# rows (array of arrays) | table(header array) -> lines
-def table($hdr):
-  ([$hdr] + map(map(cell))) as $all
-  | ($hdr | length) as $n
-  | [range(0; $n) as $i | ($all | map(.[$i] | length) | max)] as $w
-  | $all[]
-  | [range(0; $n) as $i | .[$i] as $s | if $i == $n - 1 then $s else ($s | pad($w[$i])) end]
-  | join("  ");
-def votemark: if . == "up" then "+" elif . == "down" then "-" else " " end;
+
+# next page token for a normalized list: v3 page number, v4 cursor string, or null.
+def next_page($v; $req; $n):
+  if $v == "v3" then (if $n > 0 then (($req.page // 1) + 1) else null end)
+  else (.next_page // null | if . == null or (tostring | test("^(none,)*none$")) then null else . end) end;
+
+# ---------- request builders (input: luti options object) ----------
+def pascal: snake | split("_") | map((.[0:1] | ascii_upcase) + .[1:]) | join("");
+def enum($v): if $v == "v3" then pascal else snake end;
+
+# {sort, time} -> v3 {sort: "TopDay"} / v4 {sort: "top", time_range_seconds: 86400}
+def sort_req($v; $spec):
+  $spec.transforms.top_time.ranges as $r
+  | ((.sort // "") | snake) as $s0 | ((.time // "") | snake) as $t0
+  | (if ($s0 | startswith("top_")) then ["top", (if $t0 == "" then $s0[4:] else $t0 end)] else [$s0, $t0] end) as [$s, $t]
+  | if $t != "" and ($r | has($t) | not) then
+      error("unknown time '\($t)' (use: \($r | keys_unsorted | join(", ")))")
+    elif $s == "" and $t == "" then {}
+    elif $v == "v3" then
+      (if $s == "top" or $s == "" then {sort: $r[if $t == "" then "all" else $t end].v3} else {sort: ($s | pascal)} end)
+    else
+      (if $s == "" then {} else {sort: $s} end)
+      + (if $t != "" and $r[$t].seconds != null then {time_range_seconds: $r[$t].seconds} else {} end)
+    end;
+
+# {vote: up|down|clear} -> v3 {score: 1} / v4 {is_upvote: true}
+def vote_req($v; $spec):
+  (.vote // "") as $d
+  | if (["up", "down", "clear"] | index($d)) == null then error("vote must be up, down or clear (got '\($d)')")
+    else $spec.transforms.vote[$v] | {(.field): .[$d]} end;
+
+# {page | cursor | next} -> v3 {page: N} / v4 {page_cursor: X}
+def page_req($v):
+  if $v == "v3" then
+    if .cursor then error("cursor is for API v4 servers; use page on v3")
+    else (.page // .next) as $p | if $p then {page: ($p | tonumber)} else {} end end
+  else
+    if .page then error("page is for API v3 servers; use cursor on v4")
+    else (.cursor // .next) as $c | if $c then {page_cursor: ($c | tostring)} else {} end end
+  end;
+
+# {community: name|id} -> {community_id} / {community_name}
+def community_ref:
+  (.community // null) as $c
+  | if $c == null or $c == "" then {}
+    elif ($c | tostring | test("^[0-9]+$")) then {community_id: ($c | tonumber)}
+    else {community_name: ($c | tostring | ltrimstr("!"))} end;
+
+def opt($k; $f): if .[$k] != null and .[$k] != "" then {($f): .[$k]} else {} end;

@@ -11,7 +11,7 @@ norm() {
 	jq -c -L "$REPO_ROOT/bash/lib" --arg v "$1" "include \"luti\"; $3" "$FIXTURES/$1/$2.json"
 }
 
-POST_KEYS='["body","comments","community","creator","deleted","downvotes","featured","id","locked","my_vote","published","removed","saved","score","title","upvotes","url"]'
+POST_KEYS='["alt_text","ap_id","body","comments","community","creator","deleted","downvotes","embed_video_url","featured","id","locked","media_kind","my_vote","published","removed","saved","score","thumbnail_url","title","upvotes","url","url_content_type"]'
 
 @test "post: same shape and values on v3 and v4" {
 	for v in v3 v4; do
@@ -126,21 +126,47 @@ POST_KEYS='["body","comments","community","creator","deleted","downvotes","featu
 	[ "$output" = '[]' ]
 }
 
+@test "media_kind: content type first, then the URL extension" {
+	mk() { jq -rn -L "$REPO_ROOT/bash/lib" --arg u "$1" --arg c "$2" 'include "luti"; media_kind(if $u == "" then null else $u end; if $c == "" then null else $c end)'; }
+	[ "$(mk https://x.test/a.png "")" = image ]
+	[ "$(mk 'https://x.test/A.JPEG?size=2#f' "")" = image ]
+	[ "$(mk https://x.test/clip.webm "")" = video ]
+	[ "$(mk https://x.test/page "image/jpeg")" = image ]
+	[ "$(mk https://x.test/a.png "video/mp4")" = video ]
+	[ "$(mk https://x.test/article.html "")" = link ]
+	[ "$(mk https://x.test/ "text/html")" = link ]
+	[ "$(mk "" "")" = none ]
+}
+
+@test "post media fields on v3 and v4" {
+	for v in v3 v4; do
+		run jq -c -L "$REPO_ROOT/bash/lib" --arg v "$v" 'include "luti";
+			.post_view.post += {url: "https://e.test/v.mp4", thumbnail_url: "https://e.test/t.jpg", alt_text: "a clip", url_content_type: null}
+			| .post_view | post($v) | [.url, .media_kind, .thumbnail_url, .alt_text, (.ap_id | test("/post/"))]' "$FIXTURES/$v/post_get.json"
+		[ "$output" = '["https://e.test/v.mp4","video","https://e.test/t.jpg","a clip",true]' ]
+		run norm "$v" post_get '.post_view | post($v) | [.url, .media_kind]'
+		[ "$output" = '[null,"none"]' ]
+	done
+}
+
+# display.jq is CLI-only (bash/cli); the library never formats text.
+disp() { jq -r -L "$REPO_ROOT/bash/cli" -L "$REPO_ROOT/bash/lib" --argjson w 100 "include \"display\"; $1"; }
+
 @test "table output pads columns and shows - for nulls" {
-	run jq -r -L "$REPO_ROOT/bash/lib" 'include "luti"; [["1", null, "x"], ["22", "b", "yy"]] | table(["ID", "A", "B"])' <<<'null'
+	run disp '[["1", null, "x"], ["22", "b", "yy"]] | table(["ID", "A", "B"])' <<<'null'
 	[ "${lines[0]}" = "ID  A  B" ]
 	[ "${lines[1]}" = "1   -  x" ]
 	[ "${lines[2]}" = "22  b  yy" ]
 }
 
-@test "display reads only normalized data" {
-	LT_LIB="$REPO_ROOT/bash/lib"
-	. "$REPO_ROOT/bash/lib/util.sh"
-	. "$REPO_ROOT/bash/lib/display.sh"
-	run lt_show_posts < <(norm v4 post_list '(.items) | map(post($v))')
+@test "display reads only normalized data, with media tags" {
+	run disp 'posts_table($w)' < <(norm v4 post_list '.items | map(post($v)) | .[0] += {url: "https://e.test/p.gif", media_kind: "image"}')
 	[ "$status" -eq 0 ]
 	[[ ${lines[0]} == ID*SCORE*CMTS*COMMUNITY*AUTHOR*TITLE ]]
-	run lt_show_comments < <(norm v3 comment_list '.comments | map(comment($v))')
+	[[ $output == *"[image] "* ]]
+	run disp 'post_full' < <(norm v3 post_get '.post_view | post($v) + {url: "https://e.test/v.mp4", media_kind: "video"}')
+	[[ $output == *"link: [video] https://e.test/v.mp4"* ]]
+	run disp 'comments_thread' < <(norm v3 comment_list '.comments | map(comment($v))')
 	[[ ${lines[0]} == "[7] alice"* ]]
 	[[ ${lines[2]} == "  [8] bob"* ]]
 }

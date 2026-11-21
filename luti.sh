@@ -10,7 +10,7 @@ LUTI="$LUTI_SH_DIR/bash/luti"
 usage() {
 	cat <<EOF
 Usage: $0 [OPTIONS]
-Shows open report counts and refreshes them (runs: bash/luti watch).
+Watches the report queue and rings the bell on new reports (runs: bash/luti watch reports).
 
 Options:
   -h, --help                          Show this help message and exit
@@ -19,7 +19,7 @@ Options:
   -u=USERNAME, --username=USERNAME    Username
   -p=PASSWORD, --password=PASSWORD    Password (deprecated: visible to other users; you will be asked instead)
   -m, --mfa                           Ask for a TOTP code when logging in
-  -r=REFRESH, --refresh=REFRESH       Refresh interval in seconds (default: 60)
+  -r=REFRESH, --refresh=REFRESH       Refresh interval in seconds (default: 60, minimum: 10)
 
 The login is saved in the luti profile (default: \$LUTI_PROFILE or "default"),
 so later runs need no options. See bash/luti --help for the full client.
@@ -93,10 +93,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n $config ]] && read_old_config "$config"
-[[ $refresh =~ ^[0-9]+$ && $refresh -gt 0 ]] || {
+[[ -n $refresh && $refresh != *[!0-9]* && $refresh -gt 0 ]] || {
 	echo "luti.sh: refresh interval must be a positive number" >&2
 	exit 1
 }
+if ((refresh < 10)); then
+	echo "luti.sh: warning: refresh raised to the minimum of 10 seconds" >&2
+	refresh=10
+fi
 
 login_args=()
 [[ -n $instance ]] && login_args+=(--instance "$instance")
@@ -127,4 +131,4 @@ if [[ $need_login == true ]]; then
 fi
 password=""
 
-exec "$LUTI" watch --refresh "$refresh"
+exec "$LUTI" watch reports --refresh "$refresh"

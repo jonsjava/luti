@@ -1,2 +1,4 @@
 # jq programs are written in single quotes on purpose: $names there are jq variables.
 disable=SC2016
+# Modules are sourced through paths computed at run time.
+disable=SC1091

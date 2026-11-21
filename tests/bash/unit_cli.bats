@@ -11,7 +11,7 @@ setup() {
 	run "$LUTI" --help
 	[ "$status" -eq 0 ]
 	[[ $output == *"Usage: luti"* ]]
-	for c in login logout whoami feed post comment inbox notify pm community user search mod modlog admin watch; do
+	for c in login logout whoami feed post comment inbox notify pm community user search mod modlog admin watch open star stargaze; do
 		[[ $output == *"$c"* ]]
 	done
 }
@@ -23,7 +23,9 @@ setup() {
 		"notify read" "pm send" "pm list" "community list" "community show" "community follow" "community block"
 		"user show" "mod reports" "mod resolve" "mod remove" "mod restore" "mod lock" "mod feature" "mod ban" "mod unban"
 		"admin registrations" "admin approve" "admin deny" "admin ban" "admin unban" "admin purge"
-		post comment notify pm community user mod admin)
+		"open post" "open comment" "star add" "star remove" "star list" "stargaze next" "stargaze clear"
+		"watch reports" "watch stars" "watch all"
+		post comment notify pm community user mod admin open star stargaze)
 	local c
 	for c in "${cmds[@]}"; do
 		# shellcheck disable=SC2086
@@ -147,12 +149,14 @@ setup() {
 }
 
 @test "luti.sh maps old flags, warns about -p, logs in and starts watch" {
-	stub_respond 200 '{"version":"1.0.0","jwt":"JWT9","report_count":2,"registration_application_count":0,"notification_count":1}'
+	stub_respond 200 '{"version":"1.0.0","jwt":"JWT9","items":[]}'
 	run timeout 3 "$REPO_ROOT/luti.sh" -i=https://x.test -u=me -p=pw -r=1
 	[[ $output == *"deprecated"* ]]
-	[[ $output == *"Open reports:  2"* ]]
+	[[ $output == *"minimum of 10"* ]]
+	[[ $output == *"luti watch  https://x.test (me)"*"next in 10s"* ]]
+	[[ $output == *"reports: 0 pending"*"(nothing pending)"* ]]
 	[ "$(cat "$XDG_CONFIG_HOME/luti/default/token")" = JWT9 ]
-	grep -q "GET https://x.test/api/v4/account/unread_counts" "$STUB_DIR/calls"
+	grep -q "GET https://x.test/api/v4/report/list" "$STUB_DIR/calls"
 	refute grep -q pw "$XDG_CONFIG_HOME/luti/default/config"
 }
 
@@ -165,11 +169,59 @@ my_password="old#pw"   # comment
 USE_MFA=false
 evil=\$(touch $BATS_TEST_TMPDIR/pwned)
 CFG
-	stub_respond 200 '{"version":"1.0.0","jwt":"JWTOLD","report_count":1}'
-	run timeout 3 "$REPO_ROOT/luti.sh" -f="$BATS_TEST_TMPDIR/oldconfig" -r=1
-	[[ $output == *"Open reports:  1"* ]]
+	stub_respond 200 '{"version":"1.0.0","jwt":"JWTOLD","items":[]}'
+	run timeout 3 "$REPO_ROOT/luti.sh" -f="$BATS_TEST_TMPDIR/oldconfig" -r=30
+	[[ $output == *"reports: 0 pending"* ]]
 	grep -qx 'username="olduser"' "$XDG_CONFIG_HOME/luti/default/config"
 	grep -qx 'instance="https://old.test"' "$XDG_CONFIG_HOME/luti/default/config"
 	[ ! -e "$BATS_TEST_TMPDIR/pwned" ]
 	grep -q '"password":"old#pw"' "$STUB_DIR/bodies"
+}
+
+@test "watch: refresh minimum, unknown kind, needs a login" {
+	lt_write_profile default https://x.test v4 tok
+	run "$LUTI" watch --refresh 9
+	[ "$status" -ne 0 ]
+	[[ $output == *"10"* ]]
+	run "$LUTI" watch bogus --once
+	[ "$status" -ne 0 ]
+	lt_write_profile nologin https://x.test v4
+	run "$LUTI" --profile nologin watch --once
+	[ "$status" -ne 0 ]
+	[[ $output == *"not logged in"* ]]
+}
+
+@test "watch --once exit codes: 1 at baseline, 0 when new, 1 when not, 3 on a rejected token" {
+	lt_write_profile default https://x.test v4 tok
+	local r2
+	stub_route "GET api/v4/report/list" '{"items":[]}'
+	run "$LUTI" watch --once reports
+	[ "$status" -eq 1 ]
+	[[ $output == *"baseline"* ]]
+	r2=$(jq -c '{items: [.post.items[0]]}' "$FIXTURES/v4/reports.json")
+	stub_route "GET api/v4/report/list" "$r2"
+	run "$LUTI" watch --once reports --exec "cat >'$BATS_TEST_TMPDIR/item.json'"
+	[ "$status" -eq 0 ]
+	[[ $output == *"1 new"* ]]
+	[ "$(jq -r '.watch + " " + .type + " " + .reason' "$BATS_TEST_TMPDIR/item.json")" = "reports post manual test report" ]
+	run "$LUTI" watch --once reports
+	[ "$status" -eq 1 ]
+	stub_respond 401 '{"error":"not_logged_in"}'
+	rm -rf "$STUB_DIR/routes"
+	run "$LUTI" watch --once reports
+	[ "$status" -eq 3 ]
+}
+
+@test "open refuses bad ids and prints URLs without a request" {
+	lt_write_profile default https://x.test v4
+	run "$LUTI" open post 12 --print
+	[ "$status" -eq 0 ]
+	[ "$output" = https://x.test/post/12 ]
+	run "$LUTI" open comment 3 --print
+	[ "$output" = https://x.test/comment/3 ]
+	[ ! -e "$STUB_DIR/calls" ]
+	run "$LUTI" open post abc --print
+	[ "$status" -ne 0 ]
+	run "$LUTI" open comment 3 --link --print
+	[ "$status" -ne 0 ]
 }

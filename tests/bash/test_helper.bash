@@ -18,19 +18,17 @@ export LUTI_SPEC="$REPO_ROOT/spec/endpoints.json"
 # Isolated config dir per test (or per file when set in setup_file).
 lt_test_config() {
 	export XDG_CONFIG_HOME="${1:-$BATS_TEST_TMPDIR}/config"
+	export XDG_STATE_HOME="${1:-$BATS_TEST_TMPDIR}/state"
 	mkdir -p "$XDG_CONFIG_HOME"
 	unset LUTI_PROFILE
 }
 
-# Load luti's library functions into the test shell (for unit tests).
+# Load luti's library into the test shell (for unit tests), with a clean
+# connection: set LUTI_INSTANCE / LUTI_API / LUTI_TOKEN in the test.
 lt_load_lib() {
-	LT_ROOT=$REPO_ROOT
-	LT_LIB="$REPO_ROOT/bash/lib"
-	local m
-	for m in util config api transform display; do
-		# shellcheck source=/dev/null
-		. "$LT_LIB/$m.sh"
-	done
+	unset LUTI_INSTANCE LUTI_TOKEN LUTI_API LUTI_RAW LUTI_PROFILE LUTI_USERNAME LUTI_MFA LUTI_CONFIG_API
+	# shellcheck source=/dev/null
+	. "$REPO_ROOT/bash/lib/luti.sh"
 }
 
 # Put the curl stub first in PATH. It records each call in $STUB_DIR and
@@ -46,6 +44,12 @@ lt_stub_curl() {
 stub_respond() { # stub_respond CODE BODY
 	printf '%s' "$1" >"$STUB_DIR/code"
 	printf '%s' "$2" >"$STUB_DIR/response"
+}
+
+stub_route() { # stub_route "GET api/v4/post/list" BODY
+	mkdir -p "$STUB_DIR/routes"
+	local r=${1/ /_}
+	printf '%s' "$2" >"$STUB_DIR/routes/${r//\//_}"
 }
 
 # Write a profile config without logging in.

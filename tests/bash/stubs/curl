@@ -6,6 +6,8 @@
 #   $STUB_DIR/bodies    every request body, appended
 #   $STUB_DIR/calls     one line per call: METHOD URL
 #   $STUB_DIR/response  body to print;  $STUB_DIR/code  HTTP status to print (-w)
+#   $STUB_DIR/routes/METHOD_path_with_underscores   per-route body (query string ignored),
+#       e.g. routes/GET_api_v4_post_list; overrides response for that route
 set -u
 : "${STUB_DIR:?}"
 printf '%s\n' "$@" >"$STUB_DIR/args"
@@ -28,6 +30,9 @@ while [[ $# -gt 0 ]]; do
 	shift
 done
 printf '%s %s\n' "$method" "$url" >>"$STUB_DIR/calls"
-cat "$STUB_DIR/response"
+route=${url#*://*/}
+route=${route%%\?*}
+route="$STUB_DIR/routes/${method}_${route//\//_}"
+if [[ -f $route ]]; then cat "$route"; else cat "$STUB_DIR/response"; fi
 [[ -n $wfmt ]] && printf '\n%s' "$(cat "$STUB_DIR/code")"
 exit 0

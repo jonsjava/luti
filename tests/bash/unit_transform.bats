@@ -1,89 +1,83 @@
 #!/usr/bin/env bats
-# Enum case, sort/time, vote and pagination transforms (bash/lib/transform.sh).
+# Request transforms in luti.jq: enum case, sort/time, vote, pagination, next page.
 
 setup() {
 	load test_helper
 	lt_load_lib
 }
 
-@test "snake and pascal case conversion" {
-	[ "$(lt_pascal most_comments)" = MostComments ]
-	[ "$(lt_pascal moderator_view)" = ModeratorView ]
-	[ "$(lt_pascal hot)" = Hot ]
-	[ "$(lt_snake MostComments)" = most_comments ]
-	[ "$(lt_snake TopSixHour)" = top_six_hour ]
-	[ "$(lt_snake new_comments)" = new_comments ]
-}
-
 @test "enums are PascalCase on v3 and snake_case on v4" {
-	LT_VER=v3
-	[ "$(lt_enum most_comments)" = MostComments ]
-	[ "$(lt_enum moderator_view)" = ModeratorView ]
-	[ "$(lt_enum local)" = Local ]
-	LT_VER=v4
-	[ "$(lt_enum most_comments)" = most_comments ]
-	[ "$(lt_enum ModeratorView)" = moderator_view ]
+	LUTI_API=v3
+	[ "$(_luti_enum most_comments)" = MostComments ]
+	[ "$(_luti_enum moderator_view)" = ModeratorView ]
+	[ "$(_luti_enum local)" = Local ]
+	LUTI_API=v4
+	[ "$(_luti_enum most_comments)" = most_comments ]
+	[ "$(_luti_enum ModeratorView)" = moderator_view ]
+	[ "$(_luti_enum TopSixHour)" = top_six_hour ]
 }
 
 @test "top + time becomes TopDay on v3" {
-	LT_VER=v3
-	[ "$(lt_sort_json top day)" = '{"sort":"TopDay"}' ]
-	[ "$(lt_sort_json top six_hour)" = '{"sort":"TopSixHour"}' ]
-	[ "$(lt_sort_json top)" = '{"sort":"TopAll"}' ]
-	[ "$(lt_sort_json hot)" = '{"sort":"Hot"}' ]
-	[ "$(lt_sort_json most_comments)" = '{"sort":"MostComments"}' ]
-	[ "$(lt_sort_json top_week)" = '{"sort":"TopWeek"}' ]
-	[ "$(lt_sort_json "" "")" = '{}' ]
+	LUTI_API=v3
+	[ "$(_luti_sort_json top day)" = '{"sort":"TopDay"}' ]
+	[ "$(_luti_sort_json top six_hour)" = '{"sort":"TopSixHour"}' ]
+	[ "$(_luti_sort_json top)" = '{"sort":"TopAll"}' ]
+	[ "$(_luti_sort_json hot)" = '{"sort":"Hot"}' ]
+	[ "$(_luti_sort_json most_comments)" = '{"sort":"MostComments"}' ]
+	[ "$(_luti_sort_json top_week)" = '{"sort":"TopWeek"}' ]
+	[ "$(_luti_sort_json "" "")" = '{}' ]
 }
 
-@test "top + time becomes sort=top&time_range_seconds on v4" {
-	LT_VER=v4
-	[ "$(lt_sort_json top day)" = '{"sort":"top","time_range_seconds":86400}' ]
-	[ "$(lt_sort_json top year)" = '{"sort":"top","time_range_seconds":31536000}' ]
-	[ "$(lt_sort_json top all)" = '{"sort":"top"}' ]
-	[ "$(lt_sort_json top)" = '{"sort":"top"}' ]
-	[ "$(lt_sort_json Hot)" = '{"sort":"hot"}' ]
-	[ "$(lt_sort_json TopMonth)" = '{"sort":"top","time_range_seconds":2592000}' ]
+@test "top + time becomes sort=top and time_range_seconds on v4" {
+	LUTI_API=v4
+	[ "$(_luti_sort_json top day)" = '{"sort":"top","time_range_seconds":86400}' ]
+	[ "$(_luti_sort_json top year)" = '{"sort":"top","time_range_seconds":31536000}' ]
+	[ "$(_luti_sort_json top all)" = '{"sort":"top"}' ]
+	[ "$(_luti_sort_json top)" = '{"sort":"top"}' ]
+	[ "$(_luti_sort_json Hot)" = '{"sort":"hot"}' ]
+	[ "$(_luti_sort_json TopMonth)" = '{"sort":"top","time_range_seconds":2592000}' ]
 }
 
-@test "unknown time range is an error" {
-	LT_VER=v4
-	run lt_sort_json top fortnight
+@test "unknown time range is an error with a plain message" {
+	LUTI_API=v4
+	run _luti_sort_json top fortnight
 	[ "$status" -ne 0 ]
-	[[ $output == *"unknown --time"* ]]
+	[[ $output == "luti: unknown time 'fortnight'"* ]]
 }
 
 @test "votes map to score on v3 and is_upvote on v4" {
-	LT_VER=v3
-	[ "$(lt_vote_json up)" = '{"score":1}' ]
-	[ "$(lt_vote_json down)" = '{"score":-1}' ]
-	[ "$(lt_vote_json clear)" = '{"score":0}' ]
-	LT_VER=v4
-	[ "$(lt_vote_json up)" = '{"is_upvote":true}' ]
-	[ "$(lt_vote_json down)" = '{"is_upvote":false}' ]
-	[ "$(lt_vote_json clear)" = '{"is_upvote":null}' ]
-	run lt_vote_json sideways
+	LUTI_API=v3
+	[ "$(_luti_vote_json up)" = '{"score":1}' ]
+	[ "$(_luti_vote_json down)" = '{"score":-1}' ]
+	[ "$(_luti_vote_json clear)" = '{"score":0}' ]
+	LUTI_API=v4
+	[ "$(_luti_vote_json up)" = '{"is_upvote":true}' ]
+	[ "$(_luti_vote_json down)" = '{"is_upvote":false}' ]
+	[ "$(_luti_vote_json clear)" = '{"is_upvote":null}' ]
+	run _luti_vote_json sideways
 	[ "$status" -ne 0 ]
 }
 
-@test "pagination: --page on v3, --cursor on v4" {
-	LT_VER=v3
-	[ "$(lt_page_json 3 "")" = '{"page":3}' ]
-	[ "$(lt_page_json "" "")" = '{}' ]
-	run lt_page_json "" abc
+@test "pagination: page on v3, cursor on v4, next on both" {
+	LUTI_API=v3
+	[ "$(_luti_page_json '{"page":3}')" = '{"page":3}' ]
+	[ "$(_luti_page_json '{"next":4}')" = '{"page":4}' ]
+	[ "$(_luti_page_json '{}')" = '{}' ]
+	run _luti_page_json '{"cursor":"abc"}'
 	[ "$status" -ne 0 ]
-	LT_VER=v4
-	[ "$(lt_page_json "" abc)" = '{"page_cursor":"abc"}' ]
-	run lt_page_json 2 ""
+	LUTI_API=v4
+	[ "$(_luti_page_json '{"cursor":"abc"}')" = '{"page_cursor":"abc"}' ]
+	[ "$(_luti_page_json '{"next":"abc"}')" = '{"page_cursor":"abc"}' ]
+	run _luti_page_json '{"page":2}'
 	[ "$status" -ne 0 ]
 }
 
-@test "next page hint" {
-	LT_VER=v3
-	[ "$(lt_next_page '{"posts":[]}' 2 5)" = "--page 3" ]
-	[ -z "$(lt_next_page '{"posts":[]}' 2 0)" ]
-	LT_VER=v4
-	[ "$(lt_next_page '{"items":[],"next_page":"Xyz"}' 1 1)" = "--cursor Xyz" ]
-	[ -z "$(lt_next_page '{"items":[]}' 1 0)" ]
-	[ -z "$(lt_next_page '{"next_page":"none,none,none"}' 1 3)" ]
+@test "next page: v3 page number, v4 cursor, null at the end" {
+	np() { jq -c -L "$REPO_ROOT/bash/lib" --arg v "$1" --argjson req "$2" --argjson n "$3" 'include "luti"; next_page($v; $req; $n)' <<<"$4"; }
+	[ "$(np v3 '{"page":2}' 5 '{}')" = 3 ]
+	[ "$(np v3 '{}' 5 '{}')" = 2 ]
+	[ "$(np v3 '{"page":2}' 0 '{}')" = null ]
+	[ "$(np v4 '{}' 1 '{"next_page":"Xyz"}')" = '"Xyz"' ]
+	[ "$(np v4 '{}' 0 '{}')" = null ]
+	[ "$(np v4 '{}' 3 '{"next_page":"none,none,none"}')" = null ]
 }

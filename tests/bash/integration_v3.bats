@@ -105,7 +105,7 @@ lt() {
 	[[ ${lines[0]} == ID*TITLE ]]
 	run lt alice --norm feed --community lutidev --sort new --limit 50
 	[ "$status" -eq 0 ]
-	jq -e --arg t "$IT_RUN post" 'map(.title) | index($t) != null' <<<"$output"
+	jq -e --arg t "$IT_RUN post" '.items | map(.title) | index($t) != null' <<<"$output"
 	local s
 	for s in "--sort top --time day" "--sort top --time six_hour" "--sort top" "--sort most_comments" \
 		"--sort hot --type local" "--type subscribed" "--type moderator_view" "--saved"; do
@@ -115,7 +115,7 @@ lt() {
 			echo "feed $s: $output"
 			return 1
 		}
-		jq -e 'type == "array"' <<<"$output"
+		jq -e '.items | type == "array"' <<<"$output"
 	done
 }
 
@@ -126,9 +126,9 @@ lt() {
 	hint=$(printf '%s\n' "${lines[@]}" | sed -n 's/^next: //p')
 	if [[ $IT_VER == v3 ]]; then [[ $hint == "--page 2" ]]; else [[ $hint == --cursor* ]]; fi
 	local first second
-	first=$(lt alice --norm feed --community lutidev --sort new --limit 1 | jq '.[0].id')
+	first=$(lt alice --norm feed --community lutidev --sort new --limit 1 | jq '.items[0].id')
 	# shellcheck disable=SC2086
-	second=$(lt alice --norm feed --community lutidev --sort new --limit 1 $hint | jq '.[0].id')
+	second=$(lt alice --norm feed --community lutidev --sort new --limit 1 $hint | jq '.items[0].id')
 	[ -n "$second" ] && [ "$first" != "$second" ]
 	# The other version's flag is refused.
 	if [[ $IT_VER == v3 ]]; then run lt alice feed --cursor abc; else run lt alice feed --page 2; fi
@@ -207,14 +207,14 @@ lt() {
 	lt bob comment reply --post "$IT_POST" --text "$IT_RUN reply for inbox"
 	run lt alice --norm inbox --unread --limit 50
 	[ "$status" -eq 0 ]
-	jq -e --arg t "$IT_RUN reply for inbox" 'map(select(.text == $t and .kind == "reply" and .creator.name == "bob")) | length == 1' <<<"$output"
+	jq -e --arg t "$IT_RUN reply for inbox" '.items | map(select(.text == $t and .kind == "reply" and .creator.name == "bob")) | length == 1' <<<"$output"
 	if [[ $IT_VER == v4 ]]; then
 		local nid
-		nid=$(jq --arg t "$IT_RUN reply for inbox" 'map(select(.text == $t))[0].id' <<<"$output")
+		nid=$(jq --arg t "$IT_RUN reply for inbox" '.items | map(select(.text == $t))[0].id' <<<"$output")
 		run lt alice notify read "$nid"
 		[ "$status" -eq 0 ]
 		run lt alice --norm inbox --unread --limit 50
-		jq -e --arg t "$IT_RUN reply for inbox" 'map(select(.text == $t)) | length == 0' <<<"$output"
+		jq -e --arg t "$IT_RUN reply for inbox" '.items | map(select(.text == $t)) | length == 0' <<<"$output"
 	else
 		run lt alice notify read 1
 		[ "$status" -ne 0 ]
@@ -223,7 +223,7 @@ lt() {
 	run lt alice notify read
 	[ "$status" -eq 0 ]
 	run lt alice --norm inbox --unread --limit 50
-	jq -e --arg t "$IT_RUN" 'map(select(.kind == "reply" and (.text | startswith($t)))) | length == 0' <<<"$output"
+	jq -e --arg t "$IT_RUN" '.items | map(select(.kind == "reply" and (.text | startswith($t)))) | length == 0' <<<"$output"
 	run lt alice inbox
 	[ "$status" -eq 0 ]
 	[[ ${lines[0]} == ID*KIND*TEXT ]]
@@ -234,9 +234,9 @@ lt() {
 	[ "$status" -eq 0 ]
 	run lt bob --norm pm list --limit 50
 	[ "$status" -eq 0 ]
-	jq -e --arg t "$IT_RUN private hello" 'map(select(.content == $t and .creator.name == "alice")) | length == 1' <<<"$output"
+	jq -e --arg t "$IT_RUN private hello" '.items | map(select(.content == $t and .creator.name == "alice")) | length == 1' <<<"$output"
 	run lt bob --norm inbox --limit 50
-	jq -e --arg t "$IT_RUN private hello" 'map(select(.text == $t and .kind == "private_message")) | length == 1' <<<"$output"
+	jq -e --arg t "$IT_RUN private hello" '.items | map(select(.text == $t and .kind == "private_message")) | length == 1' <<<"$output"
 	run lt bob pm list
 	[[ ${lines[0]} == ID*FROM*TO*MESSAGE ]]
 }
@@ -244,13 +244,13 @@ lt() {
 @test "community: list and show" {
 	run lt bob --norm community list --limit 50
 	[ "$status" -eq 0 ]
-	jq -e 'map(.name) | index("lutidev") != null' <<<"$output"
+	jq -e '.items | map(.name) | index("lutidev") != null' <<<"$output"
 	run lt bob community show lutidev
 	[ "$status" -eq 0 ]
 	[[ ${lines[0]} == "!lutidev"* ]]
 	[[ $output == *"moderators:"*"alice"* ]]
 	run lt bob --norm community show 2
-	[ "$(jq -r .name <<<"$output")" = lutidev ]
+	[ "$(jq -r .community.name <<<"$output")" = lutidev ]
 }
 
 @test "search finds a post by its unique title" {
@@ -277,16 +277,16 @@ lt() {
 	run lt alice --norm mod reports --type post --limit 50
 	[ "$status" -eq 0 ]
 	local rid
-	rid=$(jq --arg r "$IT_RUN report reason" 'map(select(.reason == $r))[0].id' <<<"$output")
+	rid=$(jq --arg r "$IT_RUN report reason" '.items | map(select(.reason == $r))[0].id' <<<"$output")
 	[[ $rid =~ ^[0-9]+$ ]]
 	run lt alice mod reports
 	[[ $output == *"$IT_RUN"* ]]
 	run lt alice mod resolve post "$rid"
 	[ "$status" -eq 0 ]
 	run lt alice --norm mod reports --type post --all --limit 50
-	jq -e --argjson id "$rid" 'map(select(.id == $id))[0].resolved' <<<"$output"
+	jq -e --argjson id "$rid" '.items | map(select(.id == $id))[0].resolved' <<<"$output"
 	run lt alice --norm mod reports --type post --limit 50
-	jq -e --argjson id "$rid" 'map(select(.id == $id)) | length == 0' <<<"$output"
+	jq -e --argjson id "$rid" '.items | map(select(.id == $id)) | length == 0' <<<"$output"
 }
 
 @test "comment report and resolve" {
@@ -294,11 +294,11 @@ lt() {
 	cid=$(lt alice --norm comment reply --post "$IT_POST" --text "$IT_RUN reportable" | jq .id)
 	run lt bob comment report "$cid" --reason "$IT_RUN comment reason"
 	[ "$status" -eq 0 ]
-	rid=$(lt alice --norm mod reports --type comment --limit 50 | jq --arg r "$IT_RUN comment reason" 'map(select(.reason == $r))[0].id')
+	rid=$(lt alice --norm mod reports --type comment --limit 50 | jq --arg r "$IT_RUN comment reason" '.items | map(select(.reason == $r))[0].id')
 	[[ $rid =~ ^[0-9]+$ ]]
 	run lt alice mod resolve comment "$rid"
 	[ "$status" -eq 0 ]
-	lt alice --norm mod reports --type comment --all --limit 50 | jq -e --argjson id "$rid" 'map(select(.id == $id))[0].resolved'
+	lt alice --norm mod reports --type comment --all --limit 50 | jq -e --argjson id "$rid" '.items | map(select(.id == $id))[0].resolved'
 }
 
 @test "mod: remove/restore, lock, feature" {
@@ -332,20 +332,20 @@ lt() {
 @test "admin: registrations, approve, deny" {
 	run lt admin --norm admin registrations --limit 50
 	[ "$status" -eq 0 ]
-	jq -e --arg a "$IT_USER1" --arg d "$IT_USER2" 'map(.username) | (index($a) != null and index($d) != null)' <<<"$output"
+	jq -e --arg a "$IT_USER1" --arg d "$IT_USER2" '.items | map(.username) | (index($a) != null and index($d) != null)' <<<"$output"
 	run lt admin admin registrations
 	[[ ${lines[0]} == ID*STATUS*USER* ]]
 	run lt admin admin approve "$IT_USER1"
 	[ "$status" -eq 0 ]
 	[[ $output == *"approved"* ]]
 	local appid
-	appid=$(lt admin --norm admin registrations --limit 50 | jq --arg d "$IT_USER2" 'map(select(.username == $d))[0].id')
+	appid=$(lt admin --norm admin registrations --limit 50 | jq --arg d "$IT_USER2" '.items | map(select(.username == $d))[0].id')
 	run lt admin admin deny "$appid" --reason "$IT_RUN denied"
 	[ "$status" -eq 0 ]
 	[[ $output == *"denied"* ]]
 	run lt admin --norm admin registrations --all --limit 50
 	jq -e --arg a "$IT_USER1" --arg d "$IT_USER2" '
-		(map(select(.username == $a))[0].status == "approved") and (map(select(.username == $d))[0].status == "denied")' <<<"$output"
+		.items | (map(select(.username == $a))[0].status == "approved") and (map(select(.username == $d))[0].status == "denied")' <<<"$output"
 	# The approved user can log in now.
 	run bash -c "printf 'luti-dev-user-pw\n' | '$LUTI' --profile newuser login --instance '$IT_BASE' --username '$IT_USER1'"
 	[ "$status" -eq 0 ]
@@ -355,14 +355,14 @@ lt() {
 	run lt newuser community follow lutidev
 	[ "$status" -eq 0 ]
 	local s
-	s=$(lt newuser --norm community show lutidev | jq -r .subscribed)
+	s=$(lt newuser --norm community show lutidev | jq -r .community.subscribed)
 	[[ $s == subscribed || $s == pending ]]
 	lt newuser community follow lutidev --undo
-	[ "$(lt newuser --norm community show lutidev | jq -r .subscribed)" = not_subscribed ]
+	[ "$(lt newuser --norm community show lutidev | jq -r .community.subscribed)" = not_subscribed ]
 	lt newuser community block lutidev
-	[ "$(lt newuser --norm community show lutidev | jq .blocked)" = true ]
+	[ "$(lt newuser --norm community show lutidev | jq .community.blocked)" = true ]
 	lt newuser community block lutidev --undo
-	[ "$(lt newuser --norm community show lutidev | jq .blocked)" = false ]
+	[ "$(lt newuser --norm community show lutidev | jq .community.blocked)" = false ]
 }
 
 @test "mod ban and unban in a community, shown in the modlog" {
@@ -374,7 +374,7 @@ lt() {
 	[ "$status" -eq 0 ]
 	run lt alice --norm modlog --community lutidev --limit 50
 	jq -e --arg u "$IT_USER1" --arg r "$IT_RUN community ban" '
-		map(select(.target.name == $u and .reason == $r and (.kind | test("ban")))) | length == 1' <<<"$output"
+		.items | map(select(.target.name == $u and .reason == $r and (.kind | test("ban")))) | length == 1' <<<"$output"
 	run lt alice mod ban "$IT_USER1"
 	[ "$status" -ne 0 ]
 	[[ $output == *"--community is required"* ]]
@@ -388,7 +388,7 @@ lt() {
 	[ "$status" -eq 0 ]
 	[ "$(lt admin --norm user show "$IT_USER1" | jq .person.banned)" = false ]
 	run lt admin --norm modlog --user "$IT_USER1" --limit 50
-	jq -e --arg r "$IT_RUN site ban" 'map(select(.reason == $r)) | length == 1' <<<"$output"
+	jq -e --arg r "$IT_RUN site ban" '.items | map(select(.reason == $r)) | length == 1' <<<"$output"
 }
 
 @test "modlog: table and filters" {
@@ -397,7 +397,7 @@ lt() {
 	[[ ${lines[0]} == WHEN*ACTION*MOD* ]]
 	run lt bob --norm modlog --type mod_ban_from_community --limit 50
 	[ "$status" -eq 0 ]
-	jq -e 'length > 0 and all(.kind == "mod_ban_from_community")' <<<"$output"
+	jq -e '.items | length > 0 and all(.kind == "mod_ban_from_community")' <<<"$output"
 }
 
 @test "admin purge asks for confirmation, --yes purges" {
@@ -412,17 +412,129 @@ lt() {
 	[ "$status" -ne 0 ]
 }
 
-@test "watch --once shows report counts" {
-	run lt admin watch --once
+@test "watch --once: baseline, then a new report from bob, then nothing new" {
+	export XDG_STATE_HOME="$BATS_TEST_TMPDIR/state"
+	local id
+	id=$(lt alice --norm post create --community lutidev --title "$IT_RUN watched" | jq .id)
+	run lt alice watch --once reports --community lutidev
+	[ "$status" -eq 1 ]
+	[[ $output == *"baseline saved"* ]]
+	[ -f "$XDG_STATE_HOME/luti/alice/watch-reports" ]
+	run lt alice watch --once reports --community lutidev
+	[ "$status" -eq 1 ]
+	lt bob post report "$id" --reason "$IT_RUN watch report"
+	run lt alice --norm watch --once reports --community lutidev
 	[ "$status" -eq 0 ]
-	[[ ${lines[0]} == "Open reports:"* ]]
-	[[ $output == *"Applications:"* ]]
-	run lt alice --norm watch --once
-	jq -e '.reports | type == "number"' <<<"$output"
-	# The loop runs until stopped.
-	run timeout 2 "$LUTI" --profile alice watch --refresh 1
+	jq -e --arg r "$IT_RUN watch report" '(.new | map(select(.reason == $r)) | length == 1) and .summary.reports.new >= 1' <<<"$output"
+	run lt alice watch --once reports --community lutidev
+	[ "$status" -eq 1 ]
+}
+
+@test "watch --once --exec gets each new item as JSON; the loop redraws until stopped" {
+	export XDG_STATE_HOME="$BATS_TEST_TMPDIR/state"
+	local id
+	id=$(lt alice --norm post create --community lutidev --title "$IT_RUN exec watched" | jq .id)
+	lt alice watch --once reports || true
+	lt bob post report "$id" --reason "$IT_RUN exec report"
+	run lt alice watch --once reports --exec "jq -r .reason >>'$BATS_TEST_TMPDIR/got'"
+	[ "$status" -eq 0 ]
+	grep -qx "$IT_RUN exec report" "$BATS_TEST_TMPDIR/got"
+	run lt admin watch --once all
+	[[ $status -le 1 ]]
+	[[ $output == *"reports:"* && $output == *"registrations:"* && $output == *"inbox:"* ]]
+	run timeout 3 "$LUTI" --profile alice watch reports --refresh 10 --quiet
 	[ "$status" -eq 124 ]
-	[[ $output == *"Open reports:"* ]]
+	[[ $output == *"reports"* ]]
+	run lt alice watch reports --refresh 5
+	[ "$status" -ne 0 ]
+}
+
+@test "open --print builds post, link, media, origin and comment URLs" {
+	local id cid host
+	id=$(lt bob --norm post create --community lutidev --title "$IT_RUN open me" --url "https://example.com/$IT_RUN.png" | jq .id)
+	cid=$(lt bob --norm comment reply --post "$id" --text "$IT_RUN open comment" | jq .id)
+	run lt bob open post "$id" --print
+	[ "$output" = "$IT_BASE/post/$id" ]
+	run lt bob open post "$id" --link --print
+	[ "$output" = "https://example.com/$IT_RUN.png" ]
+	run lt bob open post "$id" --media --print
+	[ "$output" = "https://example.com/$IT_RUN.png" ]
+	run lt bob open post "$id" --origin --print
+	[[ $output == http*://*/post/"$id" ]]
+	run lt bob open comment "$cid" --print
+	[ "$output" = "$IT_BASE/comment/$cid" ]
+	run lt bob open post "$IT_POST" --link --print
+	[ "$status" -ne 0 ]
+	# post view shows the media tag.
+	run lt bob post view "$id"
+	[[ $output == *"[image]"*"https://example.com/$IT_RUN.png"* ]]
+	# A stubbed xdg-open receives the URL.
+	mkdir -p "$BATS_TEST_TMPDIR/bin"
+	printf '#!/bin/sh\nprintf "%%s\\n" "$1" >"%s/opened"\n' "$BATS_TEST_TMPDIR" >"$BATS_TEST_TMPDIR/bin/xdg-open"
+	chmod +x "$BATS_TEST_TMPDIR/bin/xdg-open"
+	BROWSER='' PATH="$BATS_TEST_TMPDIR/bin:$PATH" run lt bob open post "$id"
+	[ "$status" -eq 0 ]
+	for _ in 1 2 3 4 5 6 7 8 9 10; do [[ -s $BATS_TEST_TMPDIR/opened ]] && break; sleep 0.2; done
+	[ "$(cat "$BATS_TEST_TMPDIR/opened")" = "$IT_BASE/post/$id" ]
+}
+
+@test "stars: star alice, alice posts, peek, stargaze marks it seen, then empty" {
+	export XDG_STATE_HOME="$BATS_TEST_TMPDIR/state"
+	run lt bob star add alice
+	[ "$status" -eq 0 ]
+	grep -q '^alice@' "$XDG_CONFIG_HOME/luti/bob/stars"
+	run lt bob --norm stargaze --peek
+	[ "$(jq '.items | length' <<<"$output")" = 0 ]
+	run lt bob watch --once stars
+	[ "$status" -eq 1 ]
+	local id
+	id=$(lt alice --norm post create --community lutidev --title "$IT_RUN starred post" | jq .id)
+	run lt bob star list
+	[[ $output == *"alice@"*" 1 "* ]]
+	run lt bob --norm stargaze --peek
+	jq -e --argjson id "$id" '.items | map(.id) | index($id) != null' <<<"$output"
+	run lt bob --norm stargaze --peek
+	jq -e --argjson id "$id" '.items | map(.id) | index($id) != null' <<<"$output"
+	run lt bob watch --once stars
+	[ "$status" -eq 0 ]
+	run lt bob stargaze next
+	[ "$status" -eq 0 ]
+	[[ ${lines[0]} == "★ alice@"* && ${lines[1]} == "#$id  $IT_RUN starred post" ]]
+	run lt bob stargaze next
+	[ "$status" -eq 1 ]
+	run lt bob --norm stargaze --peek
+	[ "$(jq '.items | length' <<<"$output")" = 0 ]
+	run lt bob star add nosuchuser_luti
+	[[ $output == *"nosuchuser_luti"* ]]
+	run lt bob star remove alice
+	[ "$status" -eq 0 ]
+	refute grep -q '^alice@' "$XDG_CONFIG_HOME/luti/bob/stars"
+}
+
+@test "library: used directly under set -euo pipefail, without the CLI" {
+	run env -i PATH="$PATH" HOME="$HOME" XDG_CONFIG_HOME="$XDG_CONFIG_HOME" XDG_STATE_HOME="$BATS_TEST_TMPDIR/state" \
+		LUTI_SPEC="$LUTI_SPEC" IT_BASE="$IT_BASE" IT_VER="$IT_VER" IT_RUN="$IT_RUN" REPO_ROOT="$REPO_ROOT" bash -c '
+		set -euo pipefail
+		. "$REPO_ROOT/bash/lib/luti.sh"
+		luti_connect "$IT_BASE"
+		[[ $LUTI_API == "$IT_VER" ]]
+		LUTI_TOKEN=$(luti_login bob luti-dev-user-pw)
+		[[ $(luti_whoami | jq -r .name) == bob ]]
+		id=$(luti_post_create "$(jq -nc --arg t "$IT_RUN lib post" "{community: \"lutidev\", title: \$t, url: \"https://example.com/v.mp4\"}")" | jq .id)
+		[[ $(luti_post_get "$id" | jq -r .post.media_kind) == video ]]
+		luti_post_list "{\"community\": \"lutidev\", \"sort\": \"new\", \"limit\": 5}" | jq -e --argjson id "$id" ".items | map(.id) | index(\$id) != null" >/dev/null
+		[[ $(luti_url post "$id") == "$IT_BASE/post/$id" ]]
+		luti_post_vote "$id" up >/dev/null
+		luti_watch_poll inbox "$XDG_STATE_HOME/w" | jq -e ".baseline == true" >/dev/null
+		luti_config_load alice
+		[[ $LUTI_USERNAME == alice && -n $LUTI_TOKEN ]]
+		luti_whoami | jq -r .name
+	'
+	[ "$status" -eq 0 ] || {
+		echo "$output"
+		return 1
+	}
+	[ "${lines[-1]}" = alice ]
 }
 
 @test "--json prints the raw API response" {
