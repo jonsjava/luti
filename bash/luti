@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2034  # LT_* globals set here are read by the bash/lib modules
+# luti - a Lemmy client for the terminal (Lemmy 0.19 / API v3 and 1.0 / API v4).
+# Dependencies: bash 4.3+, curl, jq.
+set -uo pipefail
+
+LT_SELF=$(readlink -f "${BASH_SOURCE[0]}")
+LT_BASH_DIR=$(dirname "$LT_SELF")
+LT_ROOT=$(dirname "$LT_BASH_DIR")
+LT_LIB="$LT_BASH_DIR/lib"
+LT_VERSION="1.0.0"
+export LT_LIB
+
+for _m in util config api transform display auth read post comment inbox social mod admin watch; do
+	# shellcheck source=/dev/null
+	. "$LT_LIB/$_m.sh"
+done
+unset _m
+
+lt_usage() {
+	cat <<'EOF'
+Usage: luti [GLOBAL OPTIONS] COMMAND [ARGS]
+
+A Lemmy client for the terminal. Works with Lemmy 0.19 (API v3) and 1.0 (API v4).
+
+Setup:
+  login                 Log in and save a token for the profile
+  logout                Log out and delete the saved token
+  whoami                Show the logged-in account
+
+Reading:
+  feed                  List posts (--sort --time --type --community)
+  post view ID          Show a post and its comments
+  search QUERY          Search posts, comments, communities and users
+  community list|show   Browse communities
+  user show NAME        Show a user and their recent content
+
+Writing:
+  post create|edit|delete|save|vote|report
+  comment reply|edit|delete|vote|report
+  pm send|list          Private messages
+  community follow|block
+
+Inbox:
+  inbox                 Replies, mentions and messages (notifications on 1.0)
+  notify read [ID]      Mark one notification (v4) or everything as read
+
+Moderation:
+  mod reports|resolve|remove|restore|lock|feature|ban|unban
+  modlog                Show the moderation log
+
+Admin:
+  admin registrations|approve|deny|ban|unban|purge
+
+Monitoring:
+  watch [--refresh N]   Keep showing open report counts
+
+Global options (allowed anywhere before a lone --):
+  --profile NAME        Use profile NAME (default: default, or $LUTI_PROFILE)
+  --instance URL        Use this instance instead of the profile's
+  --api v3|v4           Skip version detection
+  --json                Print the raw API response
+  --norm                Print luti's normalized JSON
+  -y, --yes             Do not ask for confirmation
+  -h, --help            Show help (also: luti COMMAND --help)
+  --version             Show luti's version
+
+Config lives in ${XDG_CONFIG_HOME:-~/.config}/luti/<profile>/ (config, token).
+EOF
+}
+
+lt_main() {
+	local args=() a
+	LT_PROFILE=${LUTI_PROFILE:-default}
+	while [[ $# -gt 0 ]]; do
+		a=$1
+		case $a in
+			--)
+				args+=("$@")
+				break
+				;;
+			--profile)
+				lt_need_arg "$@"
+				LT_PROFILE=$2
+				shift
+				;;
+			--profile=*) LT_PROFILE=${a#*=} ;;
+			--instance)
+				lt_need_arg "$@"
+				LT_INSTANCE=$2
+				shift
+				;;
+			--instance=*) LT_INSTANCE=${a#*=} ;;
+			--api)
+				lt_need_arg "$@"
+				LT_VER=$2
+				shift
+				;;
+			--api=*) LT_VER=${a#*=} ;;
+			--json) LT_JSON=1 ;;
+			--norm) LT_NORM=1 ;;
+			-y | --yes) LT_YES=1 ;;
+			*) args+=("$a") ;;
+		esac
+		shift
+	done
+	lt_valid_profile "$LT_PROFILE" || lt_die "invalid profile name '$LT_PROFILE'"
+	if [[ -n $LT_VER && $LT_VER != v3 && $LT_VER != v4 ]]; then
+		lt_die "--api must be v3 or v4"
+	fi
+	lt_config_load
+	lt_spec_check
+
+	set -- "${args[@]+"${args[@]}"}"
+	local cmd=${1:-}
+	[[ $# -gt 0 ]] && shift
+	case $cmd in
+		"" | -h | --help | help)
+			lt_usage
+			[[ -n $cmd ]] && return 0
+			return 1
+			;;
+		--version | version) printf 'luti %s\n' "$LT_VERSION" ;;
+		login) cmd_login "$@" ;;
+		logout) cmd_logout "$@" ;;
+		whoami) cmd_whoami "$@" ;;
+		feed) cmd_feed "$@" ;;
+		post) cmd_post "$@" ;;
+		comment) cmd_comment "$@" ;;
+		inbox) cmd_inbox "$@" ;;
+		notify) cmd_notify "$@" ;;
+		pm) cmd_pm "$@" ;;
+		community) cmd_community "$@" ;;
+		user) cmd_user "$@" ;;
+		search) cmd_search "$@" ;;
+		mod) cmd_mod "$@" ;;
+		modlog) cmd_modlog "$@" ;;
+		admin) cmd_admin "$@" ;;
+		watch) cmd_watch "$@" ;;
+		*) lt_die "unknown command '$cmd' (see luti --help)" ;;
+	esac
+}
+
+lt_main "$@"

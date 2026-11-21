@@ -1,0 +1,252 @@
+{
+  "post": {
+    "post_reports": [
+      {
+        "post_report": {
+          "id": 2,
+          "creator_id": 4,
+          "post_id": 6,
+          "original_post_name": "manual test v3 edited",
+          "original_post_body": "hello",
+          "reason": "manual test report",
+          "resolved": true,
+          "resolver_id": 3,
+          "published": "2026-11-21T03:49:36.855042Z",
+          "updated": "2026-11-21T03:49:52.774245Z"
+        },
+        "post": {
+          "id": 6,
+          "name": "manual test v3 edited",
+          "body": "hello",
+          "creator_id": 4,
+          "community_id": 2,
+          "removed": false,
+          "locked": false,
+          "published": "2026-11-21T03:49:35.488755Z",
+          "updated": "2026-11-21T03:49:35.588344Z",
+          "deleted": false,
+          "nsfw": false,
+          "ap_id": "http://lemmy019.localhost/post/6",
+          "local": true,
+          "language_id": 0,
+          "featured_community": false,
+          "featured_local": false
+        },
+        "community": {
+          "id": 2,
+          "name": "lutidev",
+          "title": "luti dev",
+          "removed": false,
+          "published": "2026-11-21T03:34:35.488047Z",
+          "deleted": false,
+          "nsfw": false,
+          "actor_id": "http://lemmy019.localhost/c/lutidev",
+          "local": true,
+          "hidden": false,
+          "posting_restricted_to_mods": false,
+          "instance_id": 1,
+          "visibility": "Public"
+        },
+        "creator": {
+          "id": 4,
+          "name": "bob",
+          "banned": false,
+          "published": "2026-11-21T03:34:34.703459Z",
+          "actor_id": "http://lemmy019.localhost/u/bob",
+          "local": true,
+          "deleted": false,
+          "bot_account": false,
+          "instance_id": 1
+        },
+        "post_creator": {
+          "id": 4,
+          "name": "bob",
+          "banned": false,
+          "published": "2026-11-21T03:34:34.703459Z",
+          "actor_id": "http://lemmy019.localhost/u/bob",
+          "local": true,
+          "deleted": false,
+          "bot_account": false,
+          "instance_id": 1
+        },
+        "creator_banned_from_community": false,
+        "creator_is_moderator": true,
+        "creator_is_admin": false,
+        "subscribed": "Subscribed",
+        "saved": false,
+        "read": false,
+        "hidden": false,
+        "creator_blocked": false,
+        "unread_comments": 2,
+        "counts": {
+          "post_id": 6,
+          "comments": 2,
+          "score": 1,
+          "upvotes": 1,
+          "downvotes": 0,
+          "published": "2026-11-21T03:49:35.488755Z",
+          "newest_comment_time": "2026-11-21T03:49:36.141130Z"
+        },
+        "resolver": {
+          "id": 3,
+          "name": "alice",
+          "banned": false,
+          "published": "2026-11-21T03:34:34.141953Z",
+          "actor_id": "http://lemmy019.localhost/u/alice",
+          "local": true,
+          "deleted": false,
+          "bot_account": false,
+          "instance_id": 1
+        }
+      }
+    ]
+  },
+  "comment": {
+    "comment_reports": [
+      {
+        "comment_report": {
+          "id": 2,
+          "creator_id": 4,
+          "comment_id": 7,
+          "original_comment_text": "alice comment edited",
+          "reason": "manual comment report",
+          "resolved": false,
+          "published": "2026-11-21T03:49:37.125328Z"
+        },
+        "comment": {
+          "id": 7,
+          "creator_id": 3,
+          "post_id": 6,
+          "content": "alice comment edited",
+          "removed": false,
+          "published": "2026-11-21T03:49:35.992253Z",
+          "updated": "2026-11-21T03:49:36.334566Z",
+          "deleted": false,
+          "ap_id": "http://lemmy019.localhost/comment/7",
+          "local": true,
+          "path": "0.7",
+          "distinguished": false,
+          "language_id": 0
+        },
+        "post": {
+          "id": 6,
+          "name": "manual test v3 edited",
+          "body": "hello",
+          "creator_id": 4,
+          "community_id": 2,
+          "removed": false,
+          "locked": false,
+          "published": "2026-11-21T03:49:35.488755Z",
+          "updated": "2026-11-21T03:49:35.588344Z",
+          "deleted": false,
+          "nsfw": false,
+          "ap_id": "http://lemmy019.localhost/post/6",
+          "local": true,
+          "language_id": 0,
+          "featured_community": false,
+          "featured_local": false
+        },
+        "community": {
+          "id": 2,
+          "name": "lutidev",
+          "title": "luti dev",
+          "removed": false,
+          "published": "2026-11-21T03:34:35.488047Z",
+          "deleted": false,
+          "nsfw": false,
+          "actor_id": "http://lemmy019.localhost/c/lutidev",
+          "local": true,
+          "hidden": false,
+          "posting_restricted_to_mods": false,
+          "instance_id": 1,
+          "visibility": "Public"
+        },
+        "creator": {
+          "id": 4,
+          "name": "bob",
+          "banned": false,
+          "published": "2026-11-21T03:34:34.703459Z",
+          "actor_id": "http://lemmy019.localhost/u/bob",
+          "local": true,
+          "deleted": false,
+          "bot_account": false,
+          "instance_id": 1
+        },
+        "comment_creator": {
+          "id": 3,
+          "name": "alice",
+          "banned": false,
+          "published": "2026-11-21T03:34:34.141953Z",
+          "actor_id": "http://lemmy019.localhost/u/alice",
+          "local": true,
+          "deleted": false,
+          "bot_account": false,
+          "instance_id": 1
+        },
+        "counts": {
+          "comment_id": 7,
+          "score": 2,
+          "upvotes": 2,
+          "downvotes": 0,
+          "published": "2026-11-21T03:49:35.992253Z",
+          "child_count": 1
+        },
+        "creator_banned_from_community": false,
+        "creator_is_moderator": true,
+        "creator_is_admin": false,
+        "creator_blocked": false,
+        "subscribed": "Subscribed",
+        "saved": false
+      }
+    ]
+  },
+  "private_message": {
+    "private_message_reports": [
+      {
+        "private_message_report": {
+          "id": 1,
+          "creator_id": 3,
+          "private_message_id": 3,
+          "original_pm_text": "spammy pm",
+          "reason": "fixture pm report",
+          "resolved": false,
+          "published": "2026-11-21T03:43:52.739790Z"
+        },
+        "private_message": {
+          "id": 3,
+          "creator_id": 4,
+          "recipient_id": 3,
+          "content": "spammy pm",
+          "deleted": false,
+          "read": true,
+          "published": "2026-11-21T03:43:52.727062Z",
+          "ap_id": "http://lemmy019.localhost/private_message/3",
+          "local": true,
+          "removed": false
+        },
+        "private_message_creator": {
+          "id": 4,
+          "name": "bob",
+          "banned": false,
+          "published": "2026-11-21T03:34:34.703459Z",
+          "actor_id": "http://lemmy019.localhost/u/bob",
+          "local": true,
+          "deleted": false,
+          "bot_account": false,
+          "instance_id": 1
+        },
+        "creator": {
+          "id": 3,
+          "name": "alice",
+          "banned": false,
+          "published": "2026-11-21T03:34:34.141953Z",
+          "actor_id": "http://lemmy019.localhost/u/alice",
+          "local": true,
+          "deleted": false,
+          "bot_account": false,
+          "instance_id": 1
+        }
+      }
+    ]
+  }
+}
