@@ -51,9 +51,9 @@ luti_report_list() {
 		else
 			raw=$(luti_api "$(_luti_report_op "$t")" "$req") || return
 		fi
-		rawall=$(jq -c --arg t "$t" --argjson r "$raw" '. + {($t): $r}' <<<"$rawall")
+		rawall=$(jq -c --arg t "$t" --slurpfile r <(printf '%s' "$raw") '. + {($t): $r[0]}' <<<"$rawall")
 		items=$(_luti_items "$(_luti_report_op "$t")" "$raw")
-		out=$(_luti_jq -c --arg v "$LUTI_API" --arg t "$t" --argjson o "$out" 'include "luti"; $o + map(report($v; $t))' <<<"$items")
+		out=$(_luti_jq -c --arg v "$LUTI_API" --arg t "$t" --slurpfile o <(printf '%s' "$out") 'include "luti"; $o[0] + map(report($v; $t))' <<<"$items")
 	done
 	_luti_emit "$rawall" "$(jq -c '{items: (sort_by(.published) | reverse)}' <<<"$out")"
 }

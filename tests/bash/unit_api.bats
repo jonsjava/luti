@@ -186,3 +186,16 @@ SH
 	[ "$(luti_normalize_instance lemmy.world)" = https://lemmy.world ]
 	[ "$(luti_normalize_instance http://localhost:8536//)" = http://localhost:8536 ]
 }
+
+@test "large responses (over the 128 KB argument limit) are handled: post with a big comment thread" {
+	LUTI_API=v4
+	stub_route "GET api/v4/post" "$(cat "$FIXTURES/v4/post_get.json")"
+	# ~600 comments, well over the kernel's 128 KB limit for one argument.
+	stub_route "GET api/v4/comment/list" "$(jq -c '.items as $i | .items = ([range(600)] | map($i[0] | .comment.content = ("x" * 400)))' "$FIXTURES/v4/comment_list.json")"
+	run luti_post_get 1
+	[ "$status" -eq 0 ]
+	[ "$(jq '.comments | length' <<<"$output")" -eq 600 ]
+	LUTI_RAW=1 run luti_post_get 1
+	[ "$status" -eq 0 ]
+	[ "$(jq '.comments.items | length' <<<"$output")" -eq 600 ]
+}

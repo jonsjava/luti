@@ -29,11 +29,11 @@ luti_post_get() {
 		craw=$(luti_api comment.list "$creq") || return
 	fi
 	if [[ $LUTI_RAW == 1 ]]; then
-		jq -c --argjson c "$craw" '. + {comments: $c}' <<<"$raw"
+		jq -c --slurpfile c <(printf '%s' "$craw") '. + {comments: $c[0]}' <<<"$raw"
 		return 0
 	fi
-	_luti_norm "$raw" '{post: (.post_view | post($v)), comments: [($c | spec_list($l))[]? | comment($v)]}' \
-		--argjson c "$craw" --argjson l "$(_luti_list_key comment.list)"
+	_luti_norm "$raw" '{post: (.post_view | post($v)), comments: [($c[0] | spec_list($l))[]? | comment($v)]}' \
+		--slurpfile c <(printf '%s' "$craw") --argjson l "$(_luti_list_key comment.list)"
 }
 
 _luti_print_post() { _luti_norm "$1" '.post_view | post($v)'; }

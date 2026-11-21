@@ -64,6 +64,27 @@ CFG
 	[ "$LUTI_USERNAME" = carol ]
 }
 
+@test "save keeps keys it does not own (TUI settings) and comments" {
+	cfg <<'CFG'
+# written by luti-tui
+instance=https://old.example
+username=alice
+images=off
+thumbnails=false
+stargaze_refresh=300
+CFG
+	LUTI_INSTANCE=https://new.example LUTI_USERNAME=bob LUTI_MFA=false LUTI_CONFIG_API=""
+	(set -o pipefail; luti_config_save)
+	run cat "$XDG_CONFIG_HOME/luti/default/config"
+	[ "${lines[0]}" = 'instance="https://new.example"' ]
+	[ "${lines[1]}" = 'username="bob"' ]
+	[[ $output == *"# written by luti-tui"* ]]
+	[[ $output == *"images=off"* ]]
+	[[ $output == *"thumbnails=false"* ]]
+	[[ $output == *"stargaze_refresh=300"* ]]
+	[[ $output != *"old.example"* && $output != *"alice"* ]]
+}
+
 @test "save refuses quotes and newlines" {
 	LUTI_INSTANCE='https://x"y'
 	run luti_config_save

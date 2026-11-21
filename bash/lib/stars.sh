@@ -108,7 +108,7 @@ _luti_user_posts() {
 			next=""
 			[[ $(jq length <<<"$items") -gt 0 ]] && next=$((i + 2))
 		fi
-		all=$(jq -c --argjson a "$all" --argjson s "${seen:-0}" '$a + map(select(.id > $s))' <<<"$items")
+		all=$(jq -c --slurpfile a <(printf '%s' "$all") --argjson s "${seen:-0}" '$a[0] + map(select(.id > $s))' <<<"$items")
 		[[ -z $seen || -z $next ]] && break
 		# Stop once this page reached last_seen.
 		jq -e --argjson s "$seen" 'length == 0 or (map(.id) | min) <= $s' <<<"$items" >/dev/null && break
@@ -245,6 +245,19 @@ luti_stargaze_poll() {
 	fi
 	for u in "${users[@]+"${users[@]}"}"; do
 		seen=$(_luti_seen "$u")
+		if [[ $all != true && -z $seen ]]; then
+			# Starred but no saved state (e.g. starred by hand or by luti-tui):
+			# treat as a new star, as the Python library does. Their newest post
+			# becomes the baseline and nothing is unread yet.
+			posts=$(_luti_user_posts "$u" "" 1 2>/dev/null) || {
+				_luti_err "warning: cannot fetch posts of $u (unknown or deleted user?)"
+				continue
+			}
+			if [[ $peek == false ]]; then
+				luti_stargaze_mark "$u" "$(jq -r '(map(.id) | max) // 0' <<<"$posts")" || return 1
+			fi
+			continue
+		fi
 		if [[ $all == true ]]; then
 			posts=$(_luti_user_posts "$u" "" 1 2>/dev/null)
 		else
@@ -253,7 +266,7 @@ luti_stargaze_poll() {
 			_luti_err "warning: cannot fetch posts of $u (unknown or deleted user?)"
 			continue
 		}
-		out=$(jq -c --argjson a "$out" --arg u "$u" '$a + map(. + {star: $u})' <<<"$posts")
+		out=$(jq -c --slurpfile a <(printf '%s' "$out") --arg u "$u" '$a[0] + map(. + {star: $u})' <<<"$posts")
 	done
 	if [[ $all == true ]]; then
 		out=$(jq -c --arg l "$limit" 'sort_by(.id) | reverse | if $l != "" then .[0:($l | tonumber)] else . end' <<<"$out")

@@ -146,11 +146,11 @@ cli_watch_once() {
 			exit 3
 		}
 		[[ $rc -eq 0 ]] || exit 2
-		all=$(jq -c --argjson a "$all" '$a + .new' <<<"$res")
+		all=$(jq -c --slurpfile a <(printf '%s' "$all") '$a[0] + .new' <<<"$res")
 		summary=$(jq -c --argjson s "$summary" '$s + {(.kind): {pending, baseline, new: (.new | length)}}' <<<"$res")
 	done
 	if [[ $CLI_JSON == 1 || $CLI_NORM == 1 ]]; then
-		jq -nc --argjson n "$all" --argjson s "$summary" '{new: $n, summary: $s}'
+		jq -nc --slurpfile n <(printf '%s' "$all") --argjson s "$summary" '{new: $n[0], summary: $s}'
 	else
 		cli_jq -r --argjson w "$CLI_WIDTH" 'include "display"; .[] | watch_line($w)' <<<"$all"
 		jq -r 'to_entries[] | "\(.key): \(.value.pending) pending" + (if .value.baseline then " (first run: baseline saved)" else ", \(.value.new) new" end)' <<<"$summary" >&2
@@ -188,7 +188,7 @@ cli_watch_loop() {
 			if [[ $(jq -r .baseline <<<"$res") == true ]]; then
 				recent=$(jq -c --argjson r "$recent" --arg t "$now" '$r + (.items | map(. + {at: $t, old: true}))' <<<"$res")
 			else
-				newall=$(jq -c --argjson a "$newall" '$a + .new' <<<"$res")
+				newall=$(jq -c --slurpfile a <(printf '%s' "$newall") '$a[0] + .new' <<<"$res")
 			fi
 		done
 		recent=$(jq -c --argjson n "$newall" --arg t "$now" '(. + ($n | map(. + {at: $t}))) | .[-15:]' <<<"$recent")
@@ -260,7 +260,7 @@ cmd_star() {
 			if [[ $(jq length <<<"$stars") -gt 0 ]]; then
 				cli_ready
 				queue=$(LUTI_RAW=0 luti_stargaze_poll --peek) || exit
-				stars=$(jq -c --argjson q "$queue" 'map(.user as $u | . + {unread: ([$q.items[] | select(.star == $u)] | length)})' <<<"$stars")
+				stars=$(jq -c --slurpfile q <(printf '%s' "$queue") '$q[0] as $q | map(.user as $u | . + {unread: ([$q.items[] | select(.star == $u)] | length)})' <<<"$stars")
 			fi
 			cli_show "$stars" 'if length == 0 then "(no stars yet: luti star add USER)" else
 				map([.user, (.unread | tostring), (.last_seen | tostring)]) | table(["USER", "UNREAD", "LAST_SEEN_POST"]) end'

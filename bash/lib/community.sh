@@ -64,7 +64,8 @@ _luti_community_action() {
 luti_community_follow() { _luti_community_action community.follow follow "${1:-}" "${2:-}"; }
 luti_community_block() { _luti_community_action community.block block "${1:-}" "${2:-}"; }
 
-# luti_person_get NAME|ID [OPTS]: {person, posts, comments}. OPTS: limit (10), sort.
+# luti_person_get NAME|ID [OPTS]: {person, posts, comments}. OPTS: limit (10), sort
+# (default newest first: v3 is sent sort=New, v4 lists newest first).
 luti_person_get() {
 	local p=${1:-} opts=${2:-} req raw content pid
 	_luti_ready || return 1
@@ -73,9 +74,9 @@ luti_person_get() {
 		return 1
 	}
 	if _luti_is_id "$p"; then
-		req=$(_luti_req '{person_id: $id, limit: (.limit // 10)} + (if .sort then {sort: (.sort | enum($v))} else {} end)' "$opts" --argjson id "$p")
+		req=$(_luti_req '{person_id: $id, limit: (.limit // 10)} + (if .sort or $v == "v3" then {sort: ((.sort // "new") | enum($v))} else {} end)' "$opts" --argjson id "$p")
 	else
-		req=$(_luti_req '{username: $n, limit: (.limit // 10)} + (if .sort then {sort: (.sort | enum($v))} else {} end)' "$opts" --arg n "${p#@}")
+		req=$(_luti_req '{username: $n, limit: (.limit // 10)} + (if .sort or $v == "v3" then {sort: ((.sort // "new") | enum($v))} else {} end)' "$opts" --arg n "${p#@}")
 	fi || return 1
 	raw=$(luti_api person.get "$req") || return
 	if [[ $LUTI_API == v3 ]]; then
@@ -85,14 +86,14 @@ luti_person_get() {
 		content=$(luti_api person.content "$(jq -c --argjson id "$pid" 'del(.username) + {person_id: $id}' <<<"$req")") || return
 	fi
 	if [[ $LUTI_RAW == 1 ]]; then
-		jq -c --argjson c "$content" '. + {content: $c}' <<<"$raw"
+		jq -c --slurpfile c <(printf '%s' "$content") '. + {content: $c[0]}' <<<"$raw"
 		return 0
 	fi
-	_luti_norm "$raw" '($c | spec_list($l)) as $items | {
+	_luti_norm "$raw" '($c[0] | spec_list($l)) as $items | {
 		person: (.person_view | person($v)),
 		posts: [$items[] | select(has("comment") | not) | post($v)],
 		comments: [$items[] | select(has("comment")) | comment($v)]}' \
-		--argjson c "$content" --argjson l "$(_luti_list_key person.content)"
+		--slurpfile c <(printf '%s' "$content") --argjson l "$(_luti_list_key person.content)"
 }
 
 # luti_search QUERY [OPTS]: {posts, comments, communities, users, next}.

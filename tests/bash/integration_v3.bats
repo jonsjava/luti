@@ -511,6 +511,24 @@ lt() {
 	refute grep -q '^alice@' "$XDG_CONFIG_HOME/luti/bob/stars"
 }
 
+@test "stars: a star with no saved state (e.g. added by luti-tui) starts at the newest post" {
+	export XDG_STATE_HOME="$BATS_TEST_TMPDIR/state"
+	local host old new
+	host=$(lt bob --norm star add alice | jq -r '.[0].user' | cut -d@ -f2)
+	rm -f "$XDG_STATE_HOME/luti/bob/stargaze"
+	old=$(lt alice --norm post create --community lutidev --title "$IT_RUN pre-star post" | jq .id)
+	run lt bob --norm stargaze --peek
+	[ "$(jq '.items | length' <<<"$output")" = 0 ]
+	[ ! -e "$XDG_STATE_HOME/luti/bob/stargaze" ]
+	run lt bob --norm stargaze
+	[ "$(jq '.items | length' <<<"$output")" = 0 ]
+	grep -q "^alice@$host	$old\$" "$XDG_STATE_HOME/luti/bob/stargaze"
+	new=$(lt alice --norm post create --community lutidev --title "$IT_RUN post-star post" | jq .id)
+	run lt bob --norm stargaze --peek
+	[ "$(jq -c '[.items[].id]' <<<"$output")" = "[$new]" ]
+	lt bob star remove alice >/dev/null
+}
+
 @test "library: used directly under set -euo pipefail, without the CLI" {
 	run env -i PATH="$PATH" HOME="$HOME" XDG_CONFIG_HOME="$XDG_CONFIG_HOME" XDG_STATE_HOME="$BATS_TEST_TMPDIR/state" \
 		LUTI_SPEC="$LUTI_SPEC" IT_BASE="$IT_BASE" IT_VER="$IT_VER" IT_RUN="$IT_RUN" REPO_ROOT="$REPO_ROOT" bash -c '

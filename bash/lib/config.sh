@@ -95,10 +95,14 @@ _luti_atomic_write() {
 }
 
 # luti_config_save: write LUTI_INSTANCE, LUTI_USERNAME, LUTI_MFA and
-# LUTI_CONFIG_API to the profile's config file.
+# LUTI_CONFIG_API to the profile's config file. Other lines (keys used by the
+# Python TUI such as images=, and comments) are kept as they were.
 luti_config_save() {
-	local dir key val
+	local dir key val keep=""
 	dir=$(luti_config_dir)
+	if [[ -f $dir/config ]]; then
+		keep=$(grep -vE '^[[:space:]]*(instance|username|mfa|api)[[:space:]]*=' "$dir/config" || true)
+	fi
 	_luti_mkdir_private "$dir" || return 1
 	for val in "$LUTI_INSTANCE" "$LUTI_USERNAME" "$LUTI_CONFIG_API"; do
 		if [[ $val == *[$'"\n']* ]]; then
@@ -116,6 +120,7 @@ luti_config_save() {
 			esac
 			[[ -n $val ]] && printf '%s="%s"\n' "$key" "$val"
 		done
+		[[ -n $keep ]] && printf '%s\n' "$keep"
 		true
 	} | _luti_atomic_write "$dir/config"
 }

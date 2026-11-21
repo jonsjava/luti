@@ -4,8 +4,6 @@ import pytest
 from conftest import fx
 
 from luti.client import (
-    SPEC_FIXES,
-    apply_spec_fixes,
     extract_items,
     pascal_case,
     snake_case,
@@ -16,7 +14,7 @@ from luti.spec import load_spec, spec_path
 
 @pytest.fixture
 def spec():
-    return apply_spec_fixes(load_spec())
+    return load_spec()
 
 
 def test_spec_loads_from_repo():
@@ -100,11 +98,9 @@ def test_fixed_params(spec):
     assert transform_params("pm.list", "v3", {"unread_only": True}, spec) == {"unread_only": True}
 
 
-def test_spec_fixes_report_types(spec):
+def test_spec_report_types_are_plural_on_v4(spec):
     for op, plural in (("report.list.post", "posts"), ("report.list.comment", "comments"), ("report.list.pm", "private_messages")):
         assert transform_params(op, "v4", {}, spec) == {"type_": plural}
-    raw = load_spec()
-    assert set(SPEC_FIXES) and apply_spec_fixes(raw)["ops"]["post.list"] == raw["ops"]["post.list"]
 
 
 def test_none_values_dropped(spec):

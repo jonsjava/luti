@@ -13,8 +13,8 @@ luti_inbox() {
 		r=$(luti_api inbox.replies "$(jq -c '. + {sort: "New"}' <<<"$req")") || return
 		m=$(luti_api inbox.mentions "$(jq -c '. + {sort: "New"}' <<<"$req")") || return
 		p=$(luti_api pm.list "$req") || return
-		raw=$(jq -nc --argjson r "$(_luti_items inbox.replies "$r")" --argjson m "$(_luti_items inbox.mentions "$m")" \
-			--argjson p "$(_luti_items pm.list "$p")" '{replies: $r, mentions: $m, private_messages: $p}')
+		raw=$(jq -nc --slurpfile r <(_luti_items inbox.replies "$r") --slurpfile m <(_luti_items inbox.mentions "$m") \
+			--slurpfile p <(_luti_items pm.list "$p") '{replies: $r[0], mentions: $m[0], private_messages: $p[0]}')
 		_luti_norm "$raw" '{items: (inbox_v3 | .[0:$req.limit]), next: next_page($v; $req; [.[] | length] | max)}' --argjson req "$req"
 	else
 		raw=$(luti_api notifications.list "$req") || return

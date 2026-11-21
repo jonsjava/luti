@@ -3,7 +3,7 @@
     "Shared endpoint map for luti's Bash CLI and Python TUI.",
     "Each op maps to an HTTP method and a path relative to /api/v3/ or /api/v4/. null = not available on that version.",
     "Request fields use the v4 names. 'rename_v3' lists fields whose name differs on v3 (v4 name -> v3 name).",
-    "'list' names the response key holding a list of results. 'fixed' params are always added to the request.",
+    "'list' names the response key holding a list of results. 'fixed' params are always added to the request. 'required' lists fields the server rejects the request without (send a reason even when unbanning).",
     "Value transforms that are not plain renames (vote, sort+time, pagination) are described under 'transforms'.",
     "Sources: Lemmy server routes at tags 0.19.21 (src/api_routes_http.rs) and 1.0.0-beta.3 (crates/api/routes/src/lib.rs),",
     "and lemmy-js-client 0.19.9 / 1.0.0-beta.2 request types. Checked against live dev servers (dev/)."
@@ -23,6 +23,7 @@
     "account.get":           {"v3": {"method": "GET",    "path": "site", "pick": "my_user"},      "v4": {"method": "GET",    "path": "account"}},
     "auth.login":            {"v3": {"method": "POST",   "path": "user/login"},                   "v4": {"method": "POST",   "path": "account/auth/login"}},
     "auth.logout":           {"v3": {"method": "POST",   "path": "user/logout"},                  "v4": {"method": "POST",   "path": "account/auth/logout"}},
+    "auth.register":         {"v3": {"method": "POST",   "path": "user/register"},                "v4": {"method": "POST",   "path": "account/auth/register"}},
     "auth.validate":         {"v3": {"method": "GET",    "path": "user/validate_auth"},           "v4": {"method": "GET",    "path": "account/validate_auth"}},
     "unread.counts":         {"v3": {"method": "GET",    "path": "user/unread_count"},            "v4": {"method": "GET",    "path": "account/unread_counts"}},
     "report.count":          {"v3": {"method": "GET",    "path": "user/report_count"},            "v4": {"method": "GET",    "path": "account/unread_counts"}},
@@ -32,7 +33,7 @@
     "post.create":           {"v3": {"method": "POST",   "path": "post"},                         "v4": {"method": "POST",   "path": "post"}},
     "post.edit":             {"v3": {"method": "PUT",    "path": "post"},                         "v4": {"method": "PUT",    "path": "post"}},
     "post.delete":           {"v3": {"method": "POST",   "path": "post/delete"},                  "v4": {"method": "DELETE", "path": "post"}},
-    "post.remove":           {"v3": {"method": "POST",   "path": "post/remove"},                  "v4": {"method": "POST",   "path": "post/remove"}},
+    "post.remove":           {"v3": {"method": "POST",   "path": "post/remove"},                  "v4": {"method": "POST",   "path": "post/remove", "required": ["reason"]}},
     "post.lock":             {"v3": {"method": "POST",   "path": "post/lock"},                    "v4": {"method": "POST",   "path": "post/lock"}},
     "post.feature":          {"v3": {"method": "POST",   "path": "post/feature"},                 "v4": {"method": "POST",   "path": "post/feature"}},
     "post.save":             {"v3": {"method": "PUT",    "path": "post/save"},                    "v4": {"method": "PUT",    "path": "post/save"}},
@@ -45,7 +46,7 @@
     "comment.create":        {"v3": {"method": "POST",   "path": "comment"},                      "v4": {"method": "POST",   "path": "comment"}},
     "comment.edit":          {"v3": {"method": "PUT",    "path": "comment"},                      "v4": {"method": "PUT",    "path": "comment"}},
     "comment.delete":        {"v3": {"method": "POST",   "path": "comment/delete"},               "v4": {"method": "DELETE", "path": "comment"}},
-    "comment.remove":        {"v3": {"method": "POST",   "path": "comment/remove"},               "v4": {"method": "POST",   "path": "comment/remove"}},
+    "comment.remove":        {"v3": {"method": "POST",   "path": "comment/remove"},               "v4": {"method": "POST",   "path": "comment/remove", "required": ["reason"]}},
     "comment.save":          {"v3": {"method": "PUT",    "path": "comment/save"},                 "v4": {"method": "PUT",    "path": "comment/save"}},
     "comment.vote":          {"v3": {"method": "POST",   "path": "comment/like"},                 "v4": {"method": "POST",   "path": "comment/like"}},
     "comment.report":        {"v3": {"method": "POST",   "path": "comment/report"},               "v4": {"method": "POST",   "path": "comment/report"}},
@@ -54,6 +55,8 @@
     "pm.create":             {"v3": {"method": "POST",   "path": "private_message"},              "v4": {"method": "POST",   "path": "private_message"}},
     "pm.list":               {"v3": {"method": "GET",    "path": "private_message/list", "list": "private_messages"},
                               "v4": {"method": "GET",    "path": "account/notification/list", "list": "items", "fixed": {"type_": "private_message"}}},
+    "pm.report":             {"v3": {"method": "POST",   "path": "private_message/report"},       "v4": {"method": "POST",   "path": "private_message/report"}},
+    "pm.read":               {"v3": {"method": "POST",   "path": "private_message/mark_as_read"}, "v4": null},
     "pm.report.resolve":     {"v3": {"method": "PUT",    "path": "private_message/report/resolve"}, "v4": {"method": "PUT",  "path": "private_message/report/resolve"}},
 
     "community.list":        {"v3": {"method": "GET",    "path": "community/list", "list": "communities"}, "v4": {"method": "GET", "path": "community/list", "list": "items"}},
@@ -61,7 +64,7 @@
     "community.follow":      {"v3": {"method": "POST",   "path": "community/follow"},             "v4": {"method": "POST",   "path": "community/follow"}},
     "community.block":       {"v3": {"method": "POST",   "path": "community/block"},              "v4": {"method": "POST",   "path": "account/block/community"}},
     "community.ban":         {"v3": {"method": "POST",   "path": "community/ban_user", "rename_v3": {"remove_or_restore_data": "remove_data", "expires_at": "expires"}},
-                              "v4": {"method": "POST",   "path": "community/ban_user"}},
+                              "v4": {"method": "POST",   "path": "community/ban_user", "required": ["reason"]}},
     "community.mod":         {"v3": {"method": "POST",   "path": "community/mod"},                "v4": {"method": "POST",   "path": "community/mod"}},
 
     "person.get":            {"v3": {"method": "GET",    "path": "user"},                         "v4": {"method": "GET",    "path": "person"}},
@@ -71,31 +74,36 @@
 
     "inbox.replies":         {"v3": {"method": "GET",    "path": "user/replies", "list": "replies"}, "v4": null},
     "inbox.mentions":        {"v3": {"method": "GET",    "path": "user/mention", "list": "mentions"}, "v4": null},
+    "inbox.reply.read":      {"v3": {"method": "POST",   "path": "comment/mark_as_read"},         "v4": null},
+    "inbox.mention.read":    {"v3": {"method": "POST",   "path": "user/mention/mark_as_read"},    "v4": null},
     "notifications.list":    {"v3": null,                                                          "v4": {"method": "GET",    "path": "account/notification/list", "list": "items"}},
     "notifications.read":    {"v3": null,                                                          "v4": {"method": "POST",   "path": "account/notification/mark_as_read"}},
     "inbox.mark_all_read":   {"v3": {"method": "POST",   "path": "user/mark_all_as_read"},        "v4": {"method": "POST",   "path": "account/notification/mark_as_read/all"}},
 
     "report.list.post":      {"v3": {"method": "GET",    "path": "post/report/list", "list": "post_reports"},
-                              "v4": {"method": "GET",    "path": "report/list", "list": "items", "fixed": {"type_": "post"}}},
+                              "v4": {"method": "GET",    "path": "report/list", "list": "items", "fixed": {"type_": "posts"}}},
     "report.list.comment":   {"v3": {"method": "GET",    "path": "comment/report/list", "list": "comment_reports"},
-                              "v4": {"method": "GET",    "path": "report/list", "list": "items", "fixed": {"type_": "comment"}}},
+                              "v4": {"method": "GET",    "path": "report/list", "list": "items", "fixed": {"type_": "comments"}}},
     "report.list.pm":        {"v3": {"method": "GET",    "path": "private_message/report/list", "list": "private_message_reports"},
-                              "v4": {"method": "GET",    "path": "report/list", "list": "items", "fixed": {"type_": "private_message"}}},
+                              "v4": {"method": "GET",    "path": "report/list", "list": "items", "fixed": {"type_": "private_messages"}}},
 
     "admin.ban":             {"v3": {"method": "POST",   "path": "user/ban", "rename_v3": {"remove_or_restore_data": "remove_data", "expires_at": "expires"}},
-                              "v4": {"method": "POST",   "path": "admin/ban"}},
+                              "v4": {"method": "POST",   "path": "admin/ban", "required": ["reason"]}},
+    "admin.banned":          {"v3": {"method": "GET",    "path": "user/banned", "list": "banned"},
+                              "v4": {"method": "GET",    "path": "admin/users", "list": "items", "fixed": {"banned_only": true}}},
     "admin.add":             {"v3": {"method": "POST",   "path": "admin/add"},                    "v4": {"method": "POST",   "path": "admin/add"}},
     "admin.registrations":   {"v3": {"method": "GET",    "path": "admin/registration_application/list", "list": "registration_applications"},
                               "v4": {"method": "GET",    "path": "admin/registration_application/list", "list": "items"}},
+    "admin.registrations.count": {"v3": {"method": "GET", "path": "admin/registration_application/count"}, "v4": {"method": "GET", "path": "account/unread_counts"}},
     "admin.approve":         {"v3": {"method": "PUT",    "path": "admin/registration_application/approve"}, "v4": {"method": "PUT", "path": "admin/registration_application/approve"}},
-    "admin.purge.person":    {"v3": {"method": "POST",   "path": "admin/purge/person"},           "v4": {"method": "POST",   "path": "admin/purge/person"}},
-    "admin.purge.community": {"v3": {"method": "POST",   "path": "admin/purge/community"},        "v4": {"method": "POST",   "path": "admin/purge/community"}},
-    "admin.purge.post":      {"v3": {"method": "POST",   "path": "admin/purge/post"},             "v4": {"method": "POST",   "path": "admin/purge/post"}},
-    "admin.purge.comment":   {"v3": {"method": "POST",   "path": "admin/purge/comment"},          "v4": {"method": "POST",   "path": "admin/purge/comment"}},
+    "admin.purge.person":    {"v3": {"method": "POST",   "path": "admin/purge/person"},           "v4": {"method": "POST",   "path": "admin/purge/person", "required": ["reason"]}},
+    "admin.purge.community": {"v3": {"method": "POST",   "path": "admin/purge/community"},        "v4": {"method": "POST",   "path": "admin/purge/community", "required": ["reason"]}},
+    "admin.purge.post":      {"v3": {"method": "POST",   "path": "admin/purge/post"},             "v4": {"method": "POST",   "path": "admin/purge/post", "required": ["reason"]}},
+    "admin.purge.comment":   {"v3": {"method": "POST",   "path": "admin/purge/comment"},          "v4": {"method": "POST",   "path": "admin/purge/comment", "required": ["reason"]}},
 
     "modlog":                {"v3": {"method": "GET",    "path": "modlog"},                       "v4": {"method": "GET",    "path": "modlog", "list": "items"}},
-    "search":                {"v3": {"method": "GET",    "path": "search", "rename_v3": {"search_term": "q"}},
-                              "v4": {"method": "GET",    "path": "search", "list": "items"}},
+    "search":                {"v3": {"method": "GET",    "path": "search", "list": ["posts", "comments", "communities", "users"], "rename_v3": {"search_term": "q"}},
+                              "v4": {"method": "GET",    "path": "search", "list": ["posts", "comments", "communities", "persons"]}},
     "resolve":               {"v3": {"method": "GET",    "path": "resolve_object"},               "v4": {"method": "GET",    "path": "resolve_object"}}
   },
   "transforms": {
@@ -107,6 +115,9 @@
     "pagination": {
       "v3": {"request": "page", "start": 1, "next": "page + 1"},
       "v4": {"request": "page_cursor", "next_field": "next_page"}
+    },
+    "community_sort": {
+      "$comment": "v4 community/list has no 'active' sort; it has active_daily, active_weekly, active_monthly, active_six_months, plus hot, new, old. Use hot or new for a sort that works on both versions."
     },
     "enum_case": {
       "$comment": "Enum values (sort, type_, listing_type) are snake_case on v4 and PascalCase on v3, e.g. most_comments -> MostComments, moderator_view -> ModeratorView.",

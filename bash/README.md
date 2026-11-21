@@ -73,6 +73,12 @@ This installs:
 
 `bin/luti` can be symlinked anywhere. It finds its files through `$LUTI_HOME` if that is set, then next to itself (the repository layout), then in `../share/luti` (the installed layout).
 
+Or install it with [basher](https://github.com/basherpm/basher), which reads `package.sh` at the repository root and links `bash/luti` onto your `PATH`:
+
+```bash
+basher install jonsjava/luti
+```
+
 ---
 
 ## Using the CLI

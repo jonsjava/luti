@@ -43,28 +43,6 @@ log = logging.getLogger("luti")
 USER_AGENT = f"luti/{__version__} (+https://github.com/jonsjava/luti)"
 ENUM_FIELDS = ("sort", "type_", "listing_type")
 
-# Corrections to spec/endpoints.json entries found wrong against the live
-# servers. The spec itself is shared and not edited from here; drop an entry
-# once the spec is fixed. (Verified on Lemmy 1.0.0-beta.3.)
-SPEC_FIXES: dict[tuple[str, str], dict[str, Any]] = {
-    # report/list takes plural ReportType values; the items carry singular type_.
-    ("report.list.post", "v4"): {"fixed": {"type_": "posts"}},
-    ("report.list.comment", "v4"): {"fixed": {"type_": "comments"}},
-    ("report.list.pm", "v4"): {"fixed": {"type_": "private_messages"}},
-}
-
-
-def apply_spec_fixes(spec: dict[str, Any]) -> dict[str, Any]:
-    """Return a copy of `spec` with SPEC_FIXES applied (only where still needed)."""
-    ops = dict(spec["ops"])
-    for (op, version), patch in SPEC_FIXES.items():
-        entry = (ops.get(op) or {}).get(version)
-        if entry is None:
-            continue
-        ops[op] = {**ops[op], version: {**entry, **patch}}
-    return {**spec, "ops": ops}
-
-
 # --------------------------------------------------------------------------
 # transforms
 # --------------------------------------------------------------------------
@@ -210,7 +188,7 @@ class LemmyClient:
         self.token = token
         self.version: str | None = api
         self.site: dict | None = None
-        self.spec = apply_spec_fixes(load_spec())
+        self.spec = load_spec()
         self._owns_http = http_client is None
         self._http = http_client or httpx.AsyncClient(
             timeout=timeout,

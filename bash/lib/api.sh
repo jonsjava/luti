@@ -1,15 +1,6 @@
 # shellcheck shell=bash
 # HTTP layer: version detection and one request function driven by spec/endpoints.json.
 
-# Corrections for spec entries the live servers reject. Merged over the spec
-# entry, so they are harmless once the spec is fixed.
-#   v4 report/list takes type_ = posts|comments|private_messages (plural).
-LUTI_FIXUPS='{
-  "report.list.post":    {"v4": {"fixed": {"type_": "posts"}}},
-  "report.list.comment": {"v4": {"fixed": {"type_": "comments"}}},
-  "report.list.pm":      {"v4": {"fixed": {"type_": "private_messages"}}}
-}'
-
 # _luti_spec_file: $LUTI_SPEC, else spec/endpoints.json next to the library
 # (repo layout bash/lib -> spec, installed layout share/luti/lib -> share/luti/spec).
 _luti_spec_file() {
@@ -99,11 +90,11 @@ luti_api_has() {
 # _luti_prepare OP JSON: print method, path, pick and payload, one per line.
 # Applies 'fixed' params and, on v3, 'rename_v3'. GET payloads are query strings.
 _luti_prepare() {
-	jq -r --arg op "$1" --arg v "$LUTI_API" --argjson req "$2" --argjson fix "$LUTI_FIXUPS" '
+	jq -r --arg op "$1" --arg v "$LUTI_API" --argjson req "$2" '
 		.ops[$op] as $o
 		| if $o == null then error("unknown op \($op)")
 		  elif $o[$v] == null then error("\($op) is not available on API \($v)")
-		  else $o[$v] * ($fix[$op][$v] // {}) end
+		  else $o[$v] end
 		| . as $d
 		| ($req + ($d.fixed // {})) as $body
 		| (if $v == "v3" and $d.rename_v3 then

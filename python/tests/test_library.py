@@ -146,3 +146,14 @@ def test_post_media_fields(v):
     assert _with_media(v, url="https://news.test/story").media_kind == "link"
     assert _with_media(v, url=None).media_kind == "none"
     assert Comment  # comments have no media fields; images come from their Markdown
+
+
+async def test_v3_profile_asks_for_newest_posts(mock):
+    # 0.19 returns profile content in no useful order unless sort=New is sent.
+    route = mock.get(f"{BASE}/api/v3/user").respond(200, json=fx("v3_person_get"))
+    async with LemmyClient(BASE) as c:
+        await c.detect()
+        person, items = await luti.Lemmy(c).person(username="alice")
+    params = route.calls.last.request.url.params
+    assert params["sort"] == "New" and params["username"] == "alice"
+    assert person.name and isinstance(items, list)

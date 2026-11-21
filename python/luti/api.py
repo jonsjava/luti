@@ -244,7 +244,10 @@ class Lemmy:
 
     # -- people ------------------------------------------------------------------
     async def person(self, username: str | None = None, person_id: int | None = None) -> tuple[Person, list[Post | Comment]]:
-        data = await self.client.call("person.get", username=username, person_id=person_id)
+        # v3 returns profile content in no useful order unless asked for sort=New;
+        # v4 person.content lists newest first.
+        extra = {} if self.is_v4 else {"sort": "new", "limit": 30}
+        data = await self.client.call("person.get", username=username, person_id=person_id, **extra)
         person = Person.parse_view(self.version, data["person_view"])
         if self.is_v4:
             content = await self.client.call("person.content", person_id=person.id, limit=30)
