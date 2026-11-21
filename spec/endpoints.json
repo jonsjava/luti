@@ -1,0 +1,133 @@
+{
+  "$comment": [
+    "Shared endpoint map for luti's Bash CLI and Python TUI.",
+    "Each op maps to an HTTP method and a path relative to /api/v3/ or /api/v4/. null = not available on that version.",
+    "Request fields use the v4 names. 'rename_v3' lists fields whose name differs on v3 (v4 name -> v3 name).",
+    "'list' names the response key holding a list of results. 'fixed' params are always added to the request.",
+    "Value transforms that are not plain renames (vote, sort+time, pagination) are described under 'transforms'.",
+    "Sources: Lemmy server routes at tags 0.19.21 (src/api_routes_http.rs) and 1.0.0-beta.3 (crates/api/routes/src/lib.rs),",
+    "and lemmy-js-client 0.19.9 / 1.0.0-beta.2 request types. Checked against live dev servers (dev/)."
+  ],
+  "detect": {
+    "order": ["v4", "v3"],
+    "probe": "site",
+    "version_field": "version"
+  },
+  "auth": {
+    "header": "Authorization",
+    "scheme": "Bearer",
+    "token_field": "jwt"
+  },
+  "ops": {
+    "site.get":              {"v3": {"method": "GET",    "path": "site"},                         "v4": {"method": "GET",    "path": "site"}},
+    "account.get":           {"v3": {"method": "GET",    "path": "site", "pick": "my_user"},      "v4": {"method": "GET",    "path": "account"}},
+    "auth.login":            {"v3": {"method": "POST",   "path": "user/login"},                   "v4": {"method": "POST",   "path": "account/auth/login"}},
+    "auth.logout":           {"v3": {"method": "POST",   "path": "user/logout"},                  "v4": {"method": "POST",   "path": "account/auth/logout"}},
+    "auth.validate":         {"v3": {"method": "GET",    "path": "user/validate_auth"},           "v4": {"method": "GET",    "path": "account/validate_auth"}},
+    "unread.counts":         {"v3": {"method": "GET",    "path": "user/unread_count"},            "v4": {"method": "GET",    "path": "account/unread_counts"}},
+    "report.count":          {"v3": {"method": "GET",    "path": "user/report_count"},            "v4": {"method": "GET",    "path": "account/unread_counts"}},
+
+    "post.list":             {"v3": {"method": "GET",    "path": "post/list", "list": "posts"},   "v4": {"method": "GET",    "path": "post/list", "list": "items"}},
+    "post.get":              {"v3": {"method": "GET",    "path": "post"},                         "v4": {"method": "GET",    "path": "post"}},
+    "post.create":           {"v3": {"method": "POST",   "path": "post"},                         "v4": {"method": "POST",   "path": "post"}},
+    "post.edit":             {"v3": {"method": "PUT",    "path": "post"},                         "v4": {"method": "PUT",    "path": "post"}},
+    "post.delete":           {"v3": {"method": "POST",   "path": "post/delete"},                  "v4": {"method": "DELETE", "path": "post"}},
+    "post.remove":           {"v3": {"method": "POST",   "path": "post/remove"},                  "v4": {"method": "POST",   "path": "post/remove"}},
+    "post.lock":             {"v3": {"method": "POST",   "path": "post/lock"},                    "v4": {"method": "POST",   "path": "post/lock"}},
+    "post.feature":          {"v3": {"method": "POST",   "path": "post/feature"},                 "v4": {"method": "POST",   "path": "post/feature"}},
+    "post.save":             {"v3": {"method": "PUT",    "path": "post/save"},                    "v4": {"method": "PUT",    "path": "post/save"}},
+    "post.vote":             {"v3": {"method": "POST",   "path": "post/like"},                    "v4": {"method": "POST",   "path": "post/like"}},
+    "post.report":           {"v3": {"method": "POST",   "path": "post/report"},                  "v4": {"method": "POST",   "path": "post/report"}},
+    "post.report.resolve":   {"v3": {"method": "PUT",    "path": "post/report/resolve"},          "v4": {"method": "PUT",    "path": "post/report/resolve"}},
+
+    "comment.list":          {"v3": {"method": "GET",    "path": "comment/list", "list": "comments"}, "v4": {"method": "GET", "path": "comment/list", "list": "items"}},
+    "comment.get":           {"v3": {"method": "GET",    "path": "comment"},                      "v4": {"method": "GET",    "path": "comment"}},
+    "comment.create":        {"v3": {"method": "POST",   "path": "comment"},                      "v4": {"method": "POST",   "path": "comment"}},
+    "comment.edit":          {"v3": {"method": "PUT",    "path": "comment"},                      "v4": {"method": "PUT",    "path": "comment"}},
+    "comment.delete":        {"v3": {"method": "POST",   "path": "comment/delete"},               "v4": {"method": "DELETE", "path": "comment"}},
+    "comment.remove":        {"v3": {"method": "POST",   "path": "comment/remove"},               "v4": {"method": "POST",   "path": "comment/remove"}},
+    "comment.save":          {"v3": {"method": "PUT",    "path": "comment/save"},                 "v4": {"method": "PUT",    "path": "comment/save"}},
+    "comment.vote":          {"v3": {"method": "POST",   "path": "comment/like"},                 "v4": {"method": "POST",   "path": "comment/like"}},
+    "comment.report":        {"v3": {"method": "POST",   "path": "comment/report"},               "v4": {"method": "POST",   "path": "comment/report"}},
+    "comment.report.resolve":{"v3": {"method": "PUT",    "path": "comment/report/resolve"},       "v4": {"method": "PUT",    "path": "comment/report/resolve"}},
+
+    "pm.create":             {"v3": {"method": "POST",   "path": "private_message"},              "v4": {"method": "POST",   "path": "private_message"}},
+    "pm.list":               {"v3": {"method": "GET",    "path": "private_message/list", "list": "private_messages"},
+                              "v4": {"method": "GET",    "path": "account/notification/list", "list": "items", "fixed": {"type_": "private_message"}}},
+    "pm.report.resolve":     {"v3": {"method": "PUT",    "path": "private_message/report/resolve"}, "v4": {"method": "PUT",  "path": "private_message/report/resolve"}},
+
+    "community.list":        {"v3": {"method": "GET",    "path": "community/list", "list": "communities"}, "v4": {"method": "GET", "path": "community/list", "list": "items"}},
+    "community.get":         {"v3": {"method": "GET",    "path": "community"},                    "v4": {"method": "GET",    "path": "community"}},
+    "community.follow":      {"v3": {"method": "POST",   "path": "community/follow"},             "v4": {"method": "POST",   "path": "community/follow"}},
+    "community.block":       {"v3": {"method": "POST",   "path": "community/block"},              "v4": {"method": "POST",   "path": "account/block/community"}},
+    "community.ban":         {"v3": {"method": "POST",   "path": "community/ban_user", "rename_v3": {"remove_or_restore_data": "remove_data", "expires_at": "expires"}},
+                              "v4": {"method": "POST",   "path": "community/ban_user"}},
+    "community.mod":         {"v3": {"method": "POST",   "path": "community/mod"},                "v4": {"method": "POST",   "path": "community/mod"}},
+
+    "person.get":            {"v3": {"method": "GET",    "path": "user"},                         "v4": {"method": "GET",    "path": "person"}},
+    "person.content":        {"v3": {"method": "GET",    "path": "user", "list": ["posts", "comments"]},
+                              "v4": {"method": "GET",    "path": "person/content", "list": "items"}},
+    "person.block":          {"v3": {"method": "POST",   "path": "user/block"},                   "v4": {"method": "POST",   "path": "account/block/person"}},
+
+    "inbox.replies":         {"v3": {"method": "GET",    "path": "user/replies", "list": "replies"}, "v4": null},
+    "inbox.mentions":        {"v3": {"method": "GET",    "path": "user/mention", "list": "mentions"}, "v4": null},
+    "notifications.list":    {"v3": null,                                                          "v4": {"method": "GET",    "path": "account/notification/list", "list": "items"}},
+    "notifications.read":    {"v3": null,                                                          "v4": {"method": "POST",   "path": "account/notification/mark_as_read"}},
+    "inbox.mark_all_read":   {"v3": {"method": "POST",   "path": "user/mark_all_as_read"},        "v4": {"method": "POST",   "path": "account/notification/mark_as_read/all"}},
+
+    "report.list.post":      {"v3": {"method": "GET",    "path": "post/report/list", "list": "post_reports"},
+                              "v4": {"method": "GET",    "path": "report/list", "list": "items", "fixed": {"type_": "post"}}},
+    "report.list.comment":   {"v3": {"method": "GET",    "path": "comment/report/list", "list": "comment_reports"},
+                              "v4": {"method": "GET",    "path": "report/list", "list": "items", "fixed": {"type_": "comment"}}},
+    "report.list.pm":        {"v3": {"method": "GET",    "path": "private_message/report/list", "list": "private_message_reports"},
+                              "v4": {"method": "GET",    "path": "report/list", "list": "items", "fixed": {"type_": "private_message"}}},
+
+    "admin.ban":             {"v3": {"method": "POST",   "path": "user/ban", "rename_v3": {"remove_or_restore_data": "remove_data", "expires_at": "expires"}},
+                              "v4": {"method": "POST",   "path": "admin/ban"}},
+    "admin.add":             {"v3": {"method": "POST",   "path": "admin/add"},                    "v4": {"method": "POST",   "path": "admin/add"}},
+    "admin.registrations":   {"v3": {"method": "GET",    "path": "admin/registration_application/list", "list": "registration_applications"},
+                              "v4": {"method": "GET",    "path": "admin/registration_application/list", "list": "items"}},
+    "admin.approve":         {"v3": {"method": "PUT",    "path": "admin/registration_application/approve"}, "v4": {"method": "PUT", "path": "admin/registration_application/approve"}},
+    "admin.purge.person":    {"v3": {"method": "POST",   "path": "admin/purge/person"},           "v4": {"method": "POST",   "path": "admin/purge/person"}},
+    "admin.purge.community": {"v3": {"method": "POST",   "path": "admin/purge/community"},        "v4": {"method": "POST",   "path": "admin/purge/community"}},
+    "admin.purge.post":      {"v3": {"method": "POST",   "path": "admin/purge/post"},             "v4": {"method": "POST",   "path": "admin/purge/post"}},
+    "admin.purge.comment":   {"v3": {"method": "POST",   "path": "admin/purge/comment"},          "v4": {"method": "POST",   "path": "admin/purge/comment"}},
+
+    "modlog":                {"v3": {"method": "GET",    "path": "modlog"},                       "v4": {"method": "GET",    "path": "modlog", "list": "items"}},
+    "search":                {"v3": {"method": "GET",    "path": "search", "rename_v3": {"search_term": "q"}},
+                              "v4": {"method": "GET",    "path": "search", "list": "items"}},
+    "resolve":               {"v3": {"method": "GET",    "path": "resolve_object"},               "v4": {"method": "GET",    "path": "resolve_object"}}
+  },
+  "transforms": {
+    "vote": {
+      "$comment": "luti's canonical vote is up / down / clear.",
+      "v3": {"field": "score", "up": 1, "down": -1, "clear": 0},
+      "v4": {"field": "is_upvote", "up": true, "down": false, "clear": null}
+    },
+    "pagination": {
+      "v3": {"request": "page", "start": 1, "next": "page + 1"},
+      "v4": {"request": "page_cursor", "next_field": "next_page"}
+    },
+    "enum_case": {
+      "$comment": "Enum values (sort, type_, listing_type) are snake_case on v4 and PascalCase on v3, e.g. most_comments -> MostComments, moderator_view -> ModeratorView.",
+      "v3": "PascalCase",
+      "v4": "snake_case"
+    },
+    "top_time": {
+      "$comment": "Sort 'top' with a time range. v4 sends sort=top&time_range_seconds=N; v3 folds it into the sort name. Missing time on v3 = TopAll.",
+      "ranges": {
+        "hour":         {"seconds": 3600,     "v3": "TopHour"},
+        "six_hour":     {"seconds": 21600,    "v3": "TopSixHour"},
+        "twelve_hour":  {"seconds": 43200,    "v3": "TopTwelveHour"},
+        "day":          {"seconds": 86400,    "v3": "TopDay"},
+        "week":         {"seconds": 604800,   "v3": "TopWeek"},
+        "month":        {"seconds": 2592000,  "v3": "TopMonth"},
+        "three_months": {"seconds": 7776000,  "v3": "TopThreeMonths"},
+        "six_months":   {"seconds": 15552000, "v3": "TopSixMonths"},
+        "nine_months":  {"seconds": 23328000, "v3": "TopNineMonths"},
+        "year":         {"seconds": 31536000, "v3": "TopYear"},
+        "all":          {"seconds": null,     "v3": "TopAll"}
+      }
+    }
+  }
+}

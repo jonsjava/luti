@@ -1,0 +1,44 @@
+# Two throwaway Lemmy servers for developing and testing luti.
+#   0.19.21      (API v3) -> http://localhost:8536
+#   1.0.0-beta.3 (API v4) -> http://localhost:8537
+# Pictrs (image hosting) is left out; luti does not upload images.
+name: luti-dev
+
+x-db: &db
+  image: postgres:16-alpine
+  environment:
+    POSTGRES_USER: lemmy
+    POSTGRES_PASSWORD: lemmy
+    POSTGRES_DB: lemmy
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U lemmy"]
+    interval: 2s
+    retries: 30
+
+services:
+  db019:
+    <<: *db
+  db10:
+    <<: *db
+
+  lemmy019:
+    image: dessalines/lemmy:0.19.21
+    environment:
+      RUST_LOG: warn
+    volumes:
+      - ./lemmy-019.hjson:/config/config.hjson:ro,Z
+    ports:
+      - "127.0.0.1:8536:8536"
+    depends_on:
+      db019: { condition: service_healthy }
+
+  lemmy10:
+    image: dessalines/lemmy:1.0.0-beta.3
+    environment:
+      RUST_LOG: warn
+    volumes:
+      - ./lemmy-10.hjson:/config/config.hjson:ro,Z
+    ports:
+      - "127.0.0.1:8537:8536"
+    depends_on:
+      db10: { condition: service_healthy }
