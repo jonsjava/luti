@@ -1,0 +1,31 @@
+{
+ "person_view": {
+  "person": {
+   "id": 5,
+   "name": "bob",
+   "published_at": "2026-11-21T03:34:38.419110Z",
+   "ap_id": "http://lemmy10.localhost/u/bob",
+   "local": true,
+   "last_refreshed_at": "2026-11-21T03:34:38.419110Z",
+   "deleted": false,
+   "bot_account": false,
+   "instance_id": 1,
+   "post_count": 0,
+   "comment_count": 2
+  },
+  "is_admin": false,
+  "banned": false
+ },
+ "site": {
+  "id": 1,
+  "name": "luti dev 1.0",
+  "published_at": "2026-11-21T03:33:08.831494Z",
+  "updated_at": "2026-11-21T03:35:14.997662Z",
+  "ap_id": "http://lemmy10.localhost/",
+  "last_refreshed_at": "2026-11-21T03:33:09.423725Z",
+  "inbox_url": "http://lemmy10.localhost/inbox",
+  "instance_id": 1
+ },
+ "moderates": [],
+ "multi_communities_created": []
+}

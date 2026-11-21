@@ -1,0 +1,65 @@
+{
+ "removed_posts": [],
+ "locked_posts": [],
+ "featured_posts": [],
+ "removed_comments": [],
+ "removed_communities": [],
+ "banned_from_community": [],
+ "banned": [],
+ "added_to_community": [
+  {
+   "mod_add_community": {
+    "id": 1,
+    "mod_person_id": 2,
+    "other_person_id": 3,
+    "community_id": 2,
+    "removed": false,
+    "when_": "2026-11-21T03:34:35.656001Z"
+   },
+   "moderator": {
+    "id": 2,
+    "name": "luti_admin",
+    "banned": false,
+    "published": "2026-11-21T03:33:02.383471Z",
+    "actor_id": "http://lemmy019.localhost/u/luti_admin",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   },
+   "community": {
+    "id": 2,
+    "name": "lutidev",
+    "title": "luti dev",
+    "removed": false,
+    "published": "2026-11-21T03:34:35.488047Z",
+    "deleted": false,
+    "nsfw": false,
+    "actor_id": "http://lemmy019.localhost/c/lutidev",
+    "local": true,
+    "hidden": false,
+    "posting_restricted_to_mods": false,
+    "instance_id": 1,
+    "visibility": "Public"
+   },
+   "modded_person": {
+    "id": 3,
+    "name": "alice",
+    "banned": false,
+    "published": "2026-11-21T03:34:34.141953Z",
+    "actor_id": "http://lemmy019.localhost/u/alice",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   }
+  }
+ ],
+ "transferred_to_community": [],
+ "added": [],
+ "admin_purged_persons": [],
+ "admin_purged_communities": [],
+ "admin_purged_posts": [],
+ "admin_purged_comments": [],
+ "hidden_communities": []
+}

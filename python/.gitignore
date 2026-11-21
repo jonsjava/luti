@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+# bundled at build time from ../spec; never commit a copy
+luti_tui/endpoints.json
