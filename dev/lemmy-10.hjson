@@ -1,0 +1,13 @@
+# Local development only. Not for production.
+{
+  database: { connection: "postgres://lemmy:lemmy@db10:5432/lemmy" }
+  hostname: "lemmy10.localhost"
+  bind: "0.0.0.0"
+  port: 8536
+  tls_enabled: false
+  setup: {
+    admin_username: "luti_admin"
+    admin_password: "luti-dev-admin-pw"
+    site_name: "luti dev 1.0"
+  }
+}

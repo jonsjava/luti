@@ -1,0 +1,76 @@
+{
+ "private_messages": [
+  {
+   "private_message": {
+    "id": 2,
+    "creator_id": 4,
+    "recipient_id": 3,
+    "content": "PM from bob",
+    "deleted": false,
+    "read": false,
+    "published": "2026-11-21T03:40:37.238837Z",
+    "ap_id": "http://lemmy019.localhost/private_message/2",
+    "local": true,
+    "removed": false
+   },
+   "creator": {
+    "id": 4,
+    "name": "bob",
+    "banned": false,
+    "published": "2026-11-21T03:34:34.703459Z",
+    "actor_id": "http://lemmy019.localhost/u/bob",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   },
+   "recipient": {
+    "id": 3,
+    "name": "alice",
+    "banned": false,
+    "published": "2026-11-21T03:34:34.141953Z",
+    "actor_id": "http://lemmy019.localhost/u/alice",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   }
+  },
+  {
+   "private_message": {
+    "id": 1,
+    "creator_id": 4,
+    "recipient_id": 3,
+    "content": "probe pm",
+    "deleted": false,
+    "read": false,
+    "published": "2026-11-21T03:39:45.194073Z",
+    "ap_id": "http://lemmy019.localhost/private_message/1",
+    "local": true,
+    "removed": false
+   },
+   "creator": {
+    "id": 4,
+    "name": "bob",
+    "banned": false,
+    "published": "2026-11-21T03:34:34.703459Z",
+    "actor_id": "http://lemmy019.localhost/u/bob",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   },
+   "recipient": {
+    "id": 3,
+    "name": "alice",
+    "banned": false,
+    "published": "2026-11-21T03:34:34.141953Z",
+    "actor_id": "http://lemmy019.localhost/u/alice",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   }
+  }
+ ]
+}

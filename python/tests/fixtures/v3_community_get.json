@@ -1,0 +1,104 @@
+{
+ "community_view": {
+  "community": {
+   "id": 2,
+   "name": "lutidev",
+   "title": "luti dev",
+   "removed": false,
+   "published": "2026-11-21T03:34:35.488047Z",
+   "deleted": false,
+   "nsfw": false,
+   "actor_id": "http://lemmy019.localhost/c/lutidev",
+   "local": true,
+   "hidden": false,
+   "posting_restricted_to_mods": false,
+   "instance_id": 1,
+   "visibility": "Public"
+  },
+  "subscribed": "Subscribed",
+  "blocked": false,
+  "counts": {
+   "community_id": 2,
+   "subscribers": 2,
+   "posts": 3,
+   "comments": 2,
+   "published": "2026-11-21T03:34:35.488047Z",
+   "users_active_day": 0,
+   "users_active_week": 0,
+   "users_active_month": 0,
+   "users_active_half_year": 0,
+   "subscribers_local": 2
+  },
+  "banned_from_community": false
+ },
+ "site": {
+  "id": 1,
+  "name": "luti dev 0.19",
+  "published": "2026-11-21T03:33:02.772346Z",
+  "updated": "2026-11-21T03:35:13.567607Z",
+  "actor_id": "http://lemmy019.localhost/",
+  "last_refreshed_at": "2026-11-21T03:33:02.769363Z",
+  "inbox_url": "http://lemmy019.localhost/inbox",
+  "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2ptikuk7VwIt8PcFV/uE\nwtGavZ2VOujYhYB+pqxDRFgB2WxS3r2WSb/zjamS1pCGh9X7/YwdNhRMZWXPPeUS\nSXMYffbvfvdi5r6TVc8C3YhUIUZxE72rmDg7xxNAzcTTay+2dpubi7X4VA9WLnK6\neya/8/VmKR5KCvYCCucS/vH+0gWbQQm8TeF0MLeXYCTImDhdWf/SB7jQrv7R6yFH\nLmuY57kRXtTEgk68JXAnYUueDyiWTrxtxNve/2GOtF/NOY6pqsbKONmOtCAkj5XW\nnqC9SxkpJlmU1HHMQootcSuVUgVcw6+PVUDhkqTO0CBYNHUEhWReILlQadQsHADn\nZwIDAQAB\n-----END PUBLIC KEY-----\n",
+  "instance_id": 1
+ },
+ "moderators": [
+  {
+   "community": {
+    "id": 2,
+    "name": "lutidev",
+    "title": "luti dev",
+    "removed": false,
+    "published": "2026-11-21T03:34:35.488047Z",
+    "deleted": false,
+    "nsfw": false,
+    "actor_id": "http://lemmy019.localhost/c/lutidev",
+    "local": true,
+    "hidden": false,
+    "posting_restricted_to_mods": false,
+    "instance_id": 1,
+    "visibility": "Public"
+   },
+   "moderator": {
+    "id": 2,
+    "name": "luti_admin",
+    "banned": false,
+    "published": "2026-11-21T03:33:02.383471Z",
+    "actor_id": "http://lemmy019.localhost/u/luti_admin",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   }
+  },
+  {
+   "community": {
+    "id": 2,
+    "name": "lutidev",
+    "title": "luti dev",
+    "removed": false,
+    "published": "2026-11-21T03:34:35.488047Z",
+    "deleted": false,
+    "nsfw": false,
+    "actor_id": "http://lemmy019.localhost/c/lutidev",
+    "local": true,
+    "hidden": false,
+    "posting_restricted_to_mods": false,
+    "instance_id": 1,
+    "visibility": "Public"
+   },
+   "moderator": {
+    "id": 3,
+    "name": "alice",
+    "banned": false,
+    "published": "2026-11-21T03:34:34.141953Z",
+    "actor_id": "http://lemmy019.localhost/u/alice",
+    "local": true,
+    "deleted": false,
+    "bot_account": false,
+    "instance_id": 1
+   }
+  }
+ ],
+ "discussion_languages": []
+}

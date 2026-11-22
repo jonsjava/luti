@@ -1,0 +1,2 @@
+# Local test tools (bats from npm, shellcheck in a venv); see test_helper.bash.
+.tools/

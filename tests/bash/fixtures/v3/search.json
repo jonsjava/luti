@@ -1,0 +1,105 @@
+{
+  "type_": "All",
+  "comments": [],
+  "posts": [
+    {
+      "post": {
+        "id": 1,
+        "name": "Welcome to lutidev",
+        "body": "First post, seeded by dev/seed.sh.",
+        "creator_id": 3,
+        "community_id": 2,
+        "removed": false,
+        "locked": false,
+        "published": "2026-11-21T03:34:36.386896Z",
+        "deleted": false,
+        "nsfw": false,
+        "ap_id": "http://lemmy019.localhost/post/1",
+        "local": true,
+        "language_id": 0,
+        "featured_community": false,
+        "featured_local": false
+      },
+      "creator": {
+        "id": 3,
+        "name": "alice",
+        "banned": false,
+        "published": "2026-11-21T03:34:34.141953Z",
+        "actor_id": "http://lemmy019.localhost/u/alice",
+        "local": true,
+        "deleted": false,
+        "bot_account": false,
+        "instance_id": 1
+      },
+      "community": {
+        "id": 2,
+        "name": "lutidev",
+        "title": "luti dev",
+        "removed": false,
+        "published": "2026-11-21T03:34:35.488047Z",
+        "deleted": false,
+        "nsfw": false,
+        "actor_id": "http://lemmy019.localhost/c/lutidev",
+        "local": true,
+        "hidden": false,
+        "posting_restricted_to_mods": false,
+        "instance_id": 1,
+        "visibility": "Public"
+      },
+      "creator_banned_from_community": false,
+      "banned_from_community": false,
+      "creator_is_moderator": true,
+      "creator_is_admin": false,
+      "counts": {
+        "post_id": 1,
+        "comments": 1,
+        "score": 1,
+        "upvotes": 1,
+        "downvotes": 0,
+        "published": "2026-11-21T03:34:36.386896Z",
+        "newest_comment_time": "2026-11-21T03:34:37.456412Z"
+      },
+      "subscribed": "Subscribed",
+      "saved": false,
+      "read": true,
+      "hidden": false,
+      "creator_blocked": false,
+      "unread_comments": 0
+    }
+  ],
+  "communities": [
+    {
+      "community": {
+        "id": 2,
+        "name": "lutidev",
+        "title": "luti dev",
+        "removed": false,
+        "published": "2026-11-21T03:34:35.488047Z",
+        "deleted": false,
+        "nsfw": false,
+        "actor_id": "http://lemmy019.localhost/c/lutidev",
+        "local": true,
+        "hidden": false,
+        "posting_restricted_to_mods": false,
+        "instance_id": 1,
+        "visibility": "Public"
+      },
+      "subscribed": "Subscribed",
+      "blocked": false,
+      "counts": {
+        "community_id": 2,
+        "subscribers": 2,
+        "posts": 5,
+        "comments": 7,
+        "published": "2026-11-21T03:34:35.488047Z",
+        "users_active_day": 0,
+        "users_active_week": 0,
+        "users_active_month": 0,
+        "users_active_half_year": 0,
+        "subscribers_local": 2
+      },
+      "banned_from_community": false
+    }
+  ],
+  "users": []
+}
