@@ -129,6 +129,8 @@ luti-tui --images off        # override the profile's images setting
 ```
 
 Press `?` or F1 for help anywhere, and `ctrl+p` for the command palette.
+`ctrl+v` in a text field pastes from the system clipboard. On Linux that uses `wl-paste` (package
+wl-clipboard) or `xclip`/`xsel` when installed, otherwise Tk; your terminal's own paste shortcut works too.
 
 | Keys | Action |
 |---|---|

@@ -159,6 +159,14 @@ def normalize_instance(instance: str) -> str:
     return instance.rstrip("/")
 
 
+def same_instance(a: str | None, b: str | None) -> bool:
+    """Whether two instance URLs name the same server (a token is only valid on the server that issued it)."""
+    try:
+        return bool(a and b) and normalize_instance(a).lower() == normalize_instance(b).lower()
+    except ValueError:
+        return False
+
+
 # --------------------------------------------------------------------------
 # client
 # --------------------------------------------------------------------------

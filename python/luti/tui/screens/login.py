@@ -19,7 +19,7 @@ from textual.widgets import (
 )
 
 from ...api import Lemmy
-from ...client import AuthError, LemmyClient, LutiError, MfaRequired
+from ...client import AuthError, LemmyClient, LutiError, MfaRequired, same_instance
 from ...config import Profile, list_profiles, valid_profile_name
 from ..widgets import SafeHeader
 from .base import LutiScreen
@@ -34,10 +34,11 @@ class LoginScreen(LutiScreen):
     ]
     EXTRA_HELP = [("enter", "on a profile: use its saved session"), ("tab", "next field")]
 
-    def __init__(self, profile: str | None = None, message: str | None = None):
+    def __init__(self, profile: str | None = None, message: str | None = None, instance: str | None = None):
         super().__init__()
         self.initial = profile
         self.message = message
+        self.instance = instance  # from luti-tui -i: prefills the form
 
     def compose(self) -> ComposeResult:
         yield SafeHeader()
@@ -85,6 +86,8 @@ class LoginScreen(LutiScreen):
                 lv.index = names.index(start)
         else:
             self.query_one("#profile", Input).value = "default"
+        if self.instance:
+            self.query_one("#instance", Input).value = self.instance
         self.query_one("#totp").display = self.query_one("#mfa", Checkbox).value
         focus = "#password" if self.query_one("#username", Input).value else "#instance"
         self.query_one(focus, Input).focus()
@@ -202,6 +205,10 @@ class LoginScreen(LutiScreen):
         if p is None:
             return
         token = p.read_token()
+        if token and not same_instance(Profile.load(p.name).instance, p.instance):
+            self.status("[yellow]The saved session is for another instance; enter the password[/]")
+            self.query_one("#password", Input).focus()
+            return
         if not token:
             self.status("[yellow]No saved session for this profile; enter the password[/]")
             self.query_one("#password", Input).focus()

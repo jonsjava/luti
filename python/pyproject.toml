@@ -45,5 +45,6 @@ asyncio_default_fixture_loop_scope = "function"
 markers = [
     "integration: needs the dev Lemmy servers from dev/docker-compose.yml",
     "install: builds fresh venvs and pip-installs the package (slow, needs the package index)",
+    "real_clipboard: runs the real clipboard code (the test must stub subprocess itself)",
 ]
 testpaths = ["tests"]

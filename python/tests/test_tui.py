@@ -67,6 +67,59 @@ async def test_no_profile_shows_login():
         await until(pilot, lambda: screen_is(app, "LoginScreen"))
 
 
+async def test_ctrl_v_pastes_the_system_clipboard(monkeypatch):
+    from luti.tui import clipboard
+    monkeypatch.setattr(clipboard, "read_system_clipboard", lambda: "p@ss w0rd!\nsecond line\n")
+    app = LutiApp()
+    async with app.run_test(size=SIZE) as pilot:
+        await until(pilot, lambda: screen_is(app, "LoginScreen"), what="login screen")
+        pw = app.screen.query_one("#password", Input)
+        pw.focus()
+        await pilot.press("ctrl+v")
+        assert pw.value == "p@ss w0rd!"  # first line only in a one-line field
+
+
+async def test_ctrl_v_falls_back_to_the_app_clipboard(monkeypatch):
+    from luti.tui import clipboard
+    monkeypatch.setattr(clipboard, "read_system_clipboard", lambda: None)
+    app = LutiApp()
+    async with app.run_test(size=SIZE) as pilot:
+        await until(pilot, lambda: screen_is(app, "LoginScreen"), what="login screen")
+        app.copy_to_clipboard("copied-in-app")
+        user = app.screen.query_one("#username", Input)
+        user.focus()
+        await pilot.press("ctrl+v")
+        assert user.value == "copied-in-app"
+
+
+async def test_instance_override_never_sends_another_servers_token(monkeypatch):
+    from luti.tui import app as app_mod
+    p = Profile(name="default", instance="https://lemmy.world", username="someone")
+    p.save()
+    p.write_token("token-for-lemmy-world")
+    sent = []
+    real = app_mod.LemmyClient
+
+    def spy(instance, *a, **kw):
+        sent.append((instance, kw.get("token")))
+        return real(instance, *a, **kw)
+
+    monkeypatch.setattr(app_mod, "LemmyClient", spy)
+    app = LutiApp(instance="http://127.0.0.1:9")
+    async with app.run_test(size=SIZE) as pilot:
+        await until(pilot, lambda: screen_is(app, "LoginScreen"), what="login screen")
+        assert app.screen.query_one("#instance", Input).value == "http://127.0.0.1:9"
+        assert "expired" not in str(app.screen.message or "")
+    assert all(tok is None for _, tok in sent)
+
+
+def test_same_instance():
+    from luti.client import same_instance
+    assert same_instance("lemmy.world", "https://Lemmy.World/")
+    assert not same_instance("https://lemmy.world", "http://127.0.0.1:8537")
+    assert not same_instance(None, "https://lemmy.world")
+
+
 @pytest.mark.integration
 async def test_login_screen_flow(server, isolated_config):
     version, base = server

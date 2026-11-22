@@ -27,14 +27,26 @@ def fx(name: str):
 
 
 @pytest.fixture(autouse=True)
-def isolated_config(tmp_path, monkeypatch):
+def isolated_config(tmp_path, monkeypatch, request):
     """Every test gets its own XDG config dir and never touches the keyring."""
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "xdg-state"))
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg-cache"))
     monkeypatch.setenv("LUTI_NO_KEYRING", "1")
     monkeypatch.delenv("LUTI_PROFILE", raising=False)
+    # Never read or write the real system clipboard (it may hold a password).
+    # Tests marked real_clipboard stub subprocess themselves.
+    from luti.tui import clipboard
+    if request.node.get_closest_marker("real_clipboard") is None:
+        _stub_clipboard(monkeypatch, clipboard)
     return tmp_path / "xdg"
+
+
+def _stub_clipboard(monkeypatch, clipboard):
+    monkeypatch.setattr(clipboard, "read_system_clipboard", lambda: None)
+    monkeypatch.setattr(clipboard, "write_system_clipboard", lambda text: False)
+    monkeypatch.setattr(clipboard, "_commands", lambda: [])
+    monkeypatch.setattr(clipboard, "_write_commands", lambda: [])
 
 
 _reachable: dict[str, bool] = {}

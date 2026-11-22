@@ -11,14 +11,15 @@ from textual.app import App, SystemCommand
 from textual.binding import Binding
 from textual.css.query import NoMatches
 from textual.screen import Screen
+from textual.widgets import Input
 
 from .. import __version__
 from ..api import Lemmy
-from ..client import AuthError, LemmyClient, LutiError
+from ..client import AuthError, LemmyClient, LutiError, same_instance
 from ..config import Profile, list_profiles, valid_profile_name
 from ..models import Person
 from ..stars import Stars
-from . import media, widgets
+from . import clipboard, media, widgets
 from .screens.base import LutiScreen
 from .screens.dialogs import HelpScreen
 
@@ -116,6 +117,26 @@ class LutiApp(App):
         self.image_cache = media.ImageCache()
         self._stargaze_timer = None
 
+    def copy_to_clipboard(self, text: str) -> None:
+        """Copy to the system clipboard too, so ctrl+v (which reads it) pastes what was copied here."""
+        super().copy_to_clipboard(text)
+        clipboard.write_system_clipboard(text)
+
+    @property
+    def clipboard(self) -> str:
+        """What ctrl+v pastes: the system clipboard when it can be read, else text copied in the app.
+        Single-line inputs get only the first line, as with a terminal paste."""
+        text = clipboard.read_system_clipboard()
+        if text is None:
+            text = self._clipboard
+            if not text:
+                self.notify("Can't read the system clipboard. Install wl-clipboard (Wayland) or xclip (X11), "
+                            "or use your terminal's paste shortcut.", severity="warning")
+        if isinstance(self.focused, Input):
+            lines = text.splitlines()
+            text = lines[0] if lines else ""
+        return text
+
     # -- settings ------------------------------------------------------------------
     def setting(self, key: str) -> str:
         return (self.profile or Profile(name="default")).setting(key)
@@ -156,13 +177,16 @@ class LutiApp(App):
             self.push_screen(LoginScreen(message=f"Invalid profile name {name!r}"))
             return
         p = Profile.load(name)
+        token = p.read_token() if p.exists() else None
         if self.instance_override:
+            if not same_instance(p.instance, self.instance_override):
+                token = None  # the saved token belongs to another server: never send it there
             p.instance = self.instance_override
         if self.api_override:
             p.api = self.api_override
-        token = p.read_token() if p.exists() else None
         if not (p.instance and token):
-            self.push_screen(LoginScreen(profile=name if p.exists() or self.profile_name else None))
+            self.push_screen(LoginScreen(profile=name if p.exists() or self.profile_name else None,
+                                         instance=self.instance_override))
             return
         lemmy = Lemmy(LemmyClient(p.instance, token=token, api=p.api))
         try:
